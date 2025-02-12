@@ -29,24 +29,30 @@ logging.basicConfig(level=logging.ERROR)
 log_vars = {
     "Gyro_data": {
         "timestamp": {"type": "float", "unit": "s", "data": []},
-        "stateEstimate.roll": {"type": "float", "unit": "deg", "data": []},
-        "stateEstimate.pitch": {"type": "float", "unit": "deg", "data": []},
-        "stateEstimate.yaw": {"type": "float", "unit": "deg", "data": []}
+        "values": {
+            "stateEstimate.roll": {"type": "float", "unit": "deg", "data": []},
+            "stateEstimate.pitch": {"type": "float", "unit": "deg", "data": []},
+            "stateEstimate.yaw": {"type": "float", "unit": "deg", "data": []}
+        }
     },
 
     "Accel_data": {
         "timestamp": {"type": "float", "unit": "s", "data": []},
-        "stateEstimate.ax": {"type": "float", "unit": "Gs", "data": []},
-        "stateEstimate.ay": {"type": "float", "unit": "Gs", "data": []},
-        "stateEstimate.az": {"type": "float", "unit": "Gs", "data": []},
+        "values": {
+            "stateEstimate.ax": {"type": "float", "unit": "Gs", "data": []},
+            "stateEstimate.ay": {"type": "float", "unit": "Gs", "data": []},
+            "stateEstimate.az": {"type": "float", "unit": "Gs", "data": []},
+        }
     },
 
     "Motor_data": {
         "timestamp": {"type": "float", "unit": "s", "data": []},
-        "motor.m1": {"type": "float", "unit": "UINT16", "data": []},
-        "motor.m2": {"type": "float", "unit": "UINT16", "data": []},
-        "motor.m3": {"type": "float", "unit": "UINT16", "data": []},
-        "motor.m4": {"type": "float", "unit": "UINT16", "data": []},
+        "values": {
+            "motor.m1": {"type": "float", "unit": "UINT16", "data": []},
+            "motor.m2": {"type": "float", "unit": "UINT16", "data": []},
+            "motor.m3": {"type": "float", "unit": "UINT16", "data": []},
+            "motor.m4": {"type": "float", "unit": "UINT16", "data": []},
+        }
     },
 }
 
@@ -54,12 +60,12 @@ log_vars = {
 def log_callback(timestamp, data, logconf):
     # print(timestamp, data)
 
-    log = log_vars[logconf.name + "_data"]
+    log_data = log_vars[logconf.name + "_data"]["values"]
 
-    log["timestamp"]["data"].append(timestamp)
+    log_vars[logconf.name + "_data"]["timestamp"]["data"].append(timestamp)
 
-    for par in log_vars.keys()[1:]:
-        log[par]["data"].append(data[par])
+    for par in log_data["values"].keys():
+        log_data[par]["data"].append(data[par])
 
 
 def plot_metrics(file=""):
@@ -77,11 +83,13 @@ def plot_metrics(file=""):
     fig, axis = plt.subplots(nrows=len(log_vars.keys()), ncols=1)
 
     for component, ax in zip(log_vars.keys(), axis):
-        log = log_vars[component]
+        log_data = log_vars[component]["values"]
 
-        time_axis = (np.array(log["timestamp"]["data"]) - log["timestamp"]["data"][0]) / 1000
-        for par in log.keys()[1:]:
-            ax.plot(time_axis, np.array(log_vars[par]["data"]), label=f"{par} ({log[par]['unit']})")
+        timeline = log_vars[component]["timestamp"]
+        time_axis = (np.array(timeline) - timeline[0]) / 1000
+
+        for par in log_data.keys():
+            ax.plot(time_axis, np.array(log_data[par]["data"]), label=f"{par} ({log_data[par]['unit']})")
         ax.set_xlabel('Time (s)')
         ax.legend()
         ax.set_title(component)
