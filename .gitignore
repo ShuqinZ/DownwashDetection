@@ -171,5 +171,5 @@ cython_debug/
 .pypirc
 
 .idea
-.cache
-.metrics
+cache
+metrics
