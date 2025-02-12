@@ -28,21 +28,21 @@ logging.basicConfig(level=logging.ERROR)
 
 log_vars = {
     "Gyro_data": {
-        "timestep": {"type": "float", "unit": "s", "data": []},
+        "timestamp": {"type": "float", "unit": "s", "data": []},
         "stateEstimate.roll": {"type": "float", "unit": "deg", "data": []},
         "stateEstimate.pitch": {"type": "float", "unit": "deg", "data": []},
         "stateEstimate.yaw": {"type": "float", "unit": "deg", "data": []}
     },
 
     "Accel_data": {
-        "timestep": {"type": "float", "unit": "s", "data": []},
+        "timestamp": {"type": "float", "unit": "s", "data": []},
         "stateEstimate.ax": {"type": "float", "unit": "Gs", "data": []},
         "stateEstimate.ay": {"type": "float", "unit": "Gs", "data": []},
         "stateEstimate.az": {"type": "float", "unit": "Gs", "data": []},
     },
 
-    "motor_data": {
-        "timestep": {"type": "float", "unit": "s", "data": []},
+    "Motor_data": {
+        "timestamp": {"type": "float", "unit": "s", "data": []},
         "motor.m1": {"type": "float", "unit": "UINT16", "data": []},
         "motor.m2": {"type": "float", "unit": "UINT16", "data": []},
         "motor.m3": {"type": "float", "unit": "UINT16", "data": []},
@@ -119,10 +119,10 @@ if __name__ == '__main__':
         accel_logconf.start()
 
         motor_logconf = LogConfig(name='Motor', period_in_ms=10)
-        motor_logconf.add_variable('motor.m1', 'UINT16')
-        motor_logconf.add_variable('motor.m2', 'UINT16')
-        motor_logconf.add_variable('motor.m3', 'UINT16')
-        motor_logconf.add_variable('motor.m4', 'UINT16')
+        motor_logconf.add_variable('motor.m1', 'uint16_t')
+        motor_logconf.add_variable('motor.m2', 'uint16_t')
+        motor_logconf.add_variable('motor.m3', 'uint16_t')
+        motor_logconf.add_variable('motor.m4', 'uint16_t')
         scf.cf.log.add_config(motor_logconf)
         motor_logconf.data_received_cb.add_callback(log_callback)
         motor_logconf.start()
