@@ -25,75 +25,74 @@ DEFAULT_HEIGHT = 0.5
 DURATION = 10
 deck_attached_event = Event()
 logging.basicConfig(level=logging.ERROR)
-_time = []
 
 log_vars = {
-    "controller.cmd_roll": {"type": "float", "unit": "cmd", "data": []},
-    "controller.cmd_pitch": {"type": "float", "unit": "cmd", "data": []},
-    "controller.cmd_yaw": {"type": "float", "unit": "cmd", "data": []},
+    "Gyro_data": {
+        "timestep": {"type": "float", "unit": "s", "data": []},
+        "stateEstimate.roll": {"type": "float", "unit": "deg", "data": []},
+        "stateEstimate.pitch": {"type": "float", "unit": "deg", "data": []},
+        "stateEstimate.yaw": {"type": "float", "unit": "deg", "data": []}
+    },
+
+    "Accel_data": {
+        "timestep": {"type": "float", "unit": "s", "data": []},
+        "stateEstimate.ax": {"type": "float", "unit": "Gs", "data": []},
+        "stateEstimate.ay": {"type": "float", "unit": "Gs", "data": []},
+        "stateEstimate.az": {"type": "float", "unit": "Gs", "data": []},
+    },
+
+    "motor_data": {
+        "timestep": {"type": "float", "unit": "s", "data": []},
+        "motor.m1": {"type": "float", "unit": "UINT16", "data": []},
+        "motor.m2": {"type": "float", "unit": "UINT16", "data": []},
+        "motor.m3": {"type": "float", "unit": "UINT16", "data": []},
+        "motor.m4": {"type": "float", "unit": "UINT16", "data": []},
+    },
 }
 
-gyro_data = []
-accel_data = []
-motor_output_data = []
+
+def log_callback(timestamp, data, logconf):
+    # print(timestamp, data)
+
+    log = log_vars[logconf.name + "_data"]
+
+    log["timestamp"]["data"].append(timestamp)
+
+    for par in log_vars.keys()[1:]:
+        log[par]["data"].append(data[par])
 
 
-def log_gyro_callback(timestamp, data, logconf):
-    gyro_data.append({
-        "timestamp": timestamp,
-        "roll": data["stateEstimate.roll"],
-        "pitch": data["stateEstimate.pitch"],
-        "yaw": data["stateEstimate.yaw"],
-    })
+def plot_metrics(file=""):
+    if not os.path.exists('metrics'):
+        os.makedirs('metrics', exist_ok=True)
 
+    if file:
+        with open(file) as f:
+            json_data = json.load(f)
+            _time = json_data["time"]
+            log_vars = json_data["params"]
 
-def log_accel_callback(timestamp, data, logconf):
-    accel_data.append({
-        "timestamp": timestamp,
-        "acc_x": data["acc.x"],
-        "acc_y": data["acc.y"],
-        "acc_z": data["acc.z"],
-    })
+    filename = f"{datetime.datetime.now():%Y_%m_%d_%H_%M_%S}"
 
+    fig, axis = plt.subplots(nrows=len(log_vars.keys()), ncols=1)
 
-def log_motor_callback(timestamp, data, logconf):
-    motor_output_data.append({
-        "timestamp": timestamp,
-        "m1": data["motor.m1"],
-        "m2": data["motor.m2"],
-        "m3": data["motor.m3"],
-        "m4": data["motor.m4"],
-    })
+    for component, ax in zip(log_vars.keys(), axis):
+        log = log_vars[component]
 
+        time_axis = (np.array(log["timestamp"]["data"]) - log["timestamp"]["data"][0]) / 1000
+        for par in log.keys()[1:]:
+            ax.plot(time_axis, np.array(log_vars[par]["data"]), label=f"{par} ({log[par]['unit']})")
+        ax.set_xlabel('Time (s)')
+        ax.legend()
+        ax.set_title(component)
 
-def plot_metrics():
-    timestamps = [d["timestamp"] for d in gyro_data]
-    plt.figure(figsize=(12, 8))
-
-    plt.subplot(3, 1, 1)
-    plt.plot(timestamps, [d["roll"] for d in gyro_data], label='Roll')
-    plt.plot(timestamps, [d["pitch"] for d in gyro_data], label='Pitch')
-    plt.plot(timestamps, [d["yaw"] for d in gyro_data], label='Yaw')
-    plt.legend()
-    plt.title("Gyroscope Data")
-
-    plt.subplot(3, 1, 2)
-    plt.plot(timestamps, [d["acc_x"] for d in accel_data], label='Acc X')
-    plt.plot(timestamps, [d["acc_y"] for d in accel_data], label='Acc Y')
-    plt.plot(timestamps, [d["acc_z"] for d in accel_data], label='Acc Z')
-    plt.legend()
-    plt.title("Accelerometer Data")
-
-    plt.subplot(3, 1, 3)
-    plt.plot(timestamps, [d["m1"] for d in motor_output_data], label='Motor 1')
-    plt.plot(timestamps, [d["m2"] for d in motor_output_data], label='Motor 2')
-    plt.plot(timestamps, [d["m3"] for d in motor_output_data], label='Motor 3')
-    plt.plot(timestamps, [d["m4"] for d in motor_output_data], label='Motor 4')
-    plt.legend()
-    plt.title("Motor Output Data")
-
-    plt.tight_layout()
-    plt.show()
+    if not file:
+        plt.savefig(f'metrics/{filename}.png', dpi=300)
+        with open(f'metrics/{filename}.json', 'w') as f:
+            json.dump(log_vars, f, indent=4)
+    else:
+        image_name = "".join(file.split('.')[:-1])
+        plt.savefig(f'{image_name}.png', dpi=300)
 
 
 if __name__ == '__main__':
@@ -108,24 +107,24 @@ if __name__ == '__main__':
         gyro_logconf.add_variable('stateEstimate.pitch', 'float')
         gyro_logconf.add_variable('stateEstimate.yaw', 'float')
         scf.cf.log.add_config(gyro_logconf)
-        gyro_logconf.data_received_cb.add_callback(log_gyro_callback)
+        gyro_logconf.data_received_cb.add_callback(log_callback)
         gyro_logconf.start()
 
         accel_logconf = LogConfig(name='Accel', period_in_ms=10)
-        accel_logconf.add_variable('acc.x', 'float')
-        accel_logconf.add_variable('acc.y', 'float')
-        accel_logconf.add_variable('acc.z', 'float')
+        accel_logconf.add_variable('stateEstimate.ax', 'float')
+        accel_logconf.add_variable('stateEstimate.ay', 'float')
+        accel_logconf.add_variable('stateEstimate.az', 'float')
         scf.cf.log.add_config(accel_logconf)
-        accel_logconf.data_received_cb.add_callback(log_accel_callback)
+        accel_logconf.data_received_cb.add_callback(log_callback)
         accel_logconf.start()
 
         motor_logconf = LogConfig(name='Motor', period_in_ms=10)
-        motor_logconf.add_variable('motor.m1', 'float')
-        motor_logconf.add_variable('motor.m2', 'float')
-        motor_logconf.add_variable('motor.m3', 'float')
-        motor_logconf.add_variable('motor.m4', 'float')
+        motor_logconf.add_variable('motor.m1', 'UINT16')
+        motor_logconf.add_variable('motor.m2', 'UINT16')
+        motor_logconf.add_variable('motor.m3', 'UINT16')
+        motor_logconf.add_variable('motor.m4', 'UINT16')
         scf.cf.log.add_config(motor_logconf)
-        motor_logconf.data_received_cb.add_callback(log_motor_callback)
+        motor_logconf.data_received_cb.add_callback(log_callback)
         motor_logconf.start()
 
         time.sleep(DURATION)
