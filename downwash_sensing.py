@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import argparse
 
-URI = uri_helper.uri_from_env(default='radio://0/100/2M/E7E7E7E701')
+URI = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E703')
 DEFAULT_HEIGHT = 0.5
 DURATION = 10
 deck_attached_event = Event()
