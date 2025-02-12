@@ -27,9 +27,16 @@ deck_attached_event = Event()
 logging.basicConfig(level=logging.ERROR)
 _time = []
 
+log_vars = {
+    "controller.cmd_roll": {"type": "float", "unit": "cmd", "data": []},
+    "controller.cmd_pitch": {"type": "float", "unit": "cmd", "data": []},
+    "controller.cmd_yaw": {"type": "float", "unit": "cmd", "data": []},
+}
+
 gyro_data = []
 accel_data = []
 motor_output_data = []
+
 
 def log_gyro_callback(timestamp, data, logconf):
     gyro_data.append({
@@ -39,6 +46,7 @@ def log_gyro_callback(timestamp, data, logconf):
         "yaw": data["stateEstimate.yaw"],
     })
 
+
 def log_accel_callback(timestamp, data, logconf):
     accel_data.append({
         "timestamp": timestamp,
@@ -46,6 +54,7 @@ def log_accel_callback(timestamp, data, logconf):
         "acc_y": data["acc.y"],
         "acc_z": data["acc.z"],
     })
+
 
 def log_motor_callback(timestamp, data, logconf):
     motor_output_data.append({
@@ -55,6 +64,37 @@ def log_motor_callback(timestamp, data, logconf):
         "m3": data["motor.m3"],
         "m4": data["motor.m4"],
     })
+
+
+def plot_metrics():
+    timestamps = [d["timestamp"] for d in gyro_data]
+    plt.figure(figsize=(12, 8))
+
+    plt.subplot(3, 1, 1)
+    plt.plot(timestamps, [d["roll"] for d in gyro_data], label='Roll')
+    plt.plot(timestamps, [d["pitch"] for d in gyro_data], label='Pitch')
+    plt.plot(timestamps, [d["yaw"] for d in gyro_data], label='Yaw')
+    plt.legend()
+    plt.title("Gyroscope Data")
+
+    plt.subplot(3, 1, 2)
+    plt.plot(timestamps, [d["acc_x"] for d in accel_data], label='Acc X')
+    plt.plot(timestamps, [d["acc_y"] for d in accel_data], label='Acc Y')
+    plt.plot(timestamps, [d["acc_z"] for d in accel_data], label='Acc Z')
+    plt.legend()
+    plt.title("Accelerometer Data")
+
+    plt.subplot(3, 1, 3)
+    plt.plot(timestamps, [d["m1"] for d in motor_output_data], label='Motor 1')
+    plt.plot(timestamps, [d["m2"] for d in motor_output_data], label='Motor 2')
+    plt.plot(timestamps, [d["m3"] for d in motor_output_data], label='Motor 3')
+    plt.plot(timestamps, [d["m4"] for d in motor_output_data], label='Motor 4')
+    plt.legend()
+    plt.title("Motor Output Data")
+
+    plt.tight_layout()
+    plt.show()
+
 
 if __name__ == '__main__':
     cflib.crtp.init_drivers()
@@ -94,6 +134,4 @@ if __name__ == '__main__':
         accel_logconf.stop()
         motor_logconf.stop()
 
-        print("Gyro Data:", gyro_data)
-        print("Accelerometer Data:", accel_data)
-        print("Motor Output Data:", motor_output_data)
+        plot_metrics()
