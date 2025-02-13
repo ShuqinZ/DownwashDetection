@@ -164,7 +164,7 @@ def plot_realtime(fps=50):
     """ Function to update real-time plots in a separate thread."""
     global log_vars, PLOTTING, RECENT_TIME, LOGRATE
 
-    n = RECENT_TIME / LOGRATE
+    n = int(np.floor(RECENT_TIME * 1000 / LOGRATE))
     plt.ion()
     fig, axes = plt.subplots(nrows=len(log_vars.keys()), ncols=1, figsize=(12, 8))
 
@@ -296,8 +296,8 @@ if __name__ == '__main__':
         swarm.parallel_safe(async_flight, args_dict)
         time.sleep(1)
 
-        stop_plot()
+        stop_plot(plot_thread)
         stop_logger(LOGGERS)
 
-        time.sleep(0.1)
+        time.sleep(1)
         plot_metrics()
