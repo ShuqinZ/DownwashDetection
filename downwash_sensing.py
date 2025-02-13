@@ -21,17 +21,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 import argparse
 
+UPPER_WAIT_TIME = 0
+DURATION = 10
+PWM_SIGNAL = 35000
+
 LOWERFLS_URI = 'radio://0/80/2M/E7E7E7E702'  # lower FLS
 UPPERFLS_URI = 'radio://0/80/2M/E7E7E7E704'  # upper FLS
+
+LOGGING_FLS = UPPERFLS_URI
 
 URI_LIST = {
     LOWERFLS_URI,
     UPPERFLS_URI
 }
-
-UPPER_WAIT_TIME = 10
-DURATION = 20
-PWM_SIGNAL = 35000
 
 deck_attached_event = Event()
 logging.basicConfig(level=logging.ERROR)
@@ -80,7 +82,7 @@ def restart(uri):
 def select_uri(func):
     def wrapper(uri, *args, **kwargs):
         global URI_LIST
-        if uri == LOWERFLS_URI:
+        if uri == LOGGING_FLS:
             func(*args, **kwargs)
 
     return wrapper
@@ -92,11 +94,20 @@ def log_callback(timestamp, data, logconf):
     
     log_data = log_vars[logconf.name + "_data"]["values"]
 
+    if not log_data or log_data is None:
+        print(f"Missing log package: at time {timestamp}")
+        return
+    
+    if timestamp is None or not timestamp:
+        print(f"Missing timestamp: {log_vars[logconf.name + '_data']['timestamp']}")
+        return
+    
     log_vars[logconf.name + "_data"]["timestamp"].append(timestamp)
-
+    
     for par in log_data.keys():
         value = data[par]
         if value is None:
+            print(f"Missing Reading: {par} {value}")
             value = log_data[par]["data"][-1]
         log_data[par]["data"].append(data[par])
 
@@ -142,7 +153,7 @@ def plot_metrics(file=""):
 
 def start_logger(scf):
     global LOWERFLS_URI
-    if scf.cf.link_uri != LOWERFLS_URI:
+    if scf.cf.link_uri != LOGGING_FLS:
         return
 
     gyro_logconf = LogConfig(name='Gyro', period_in_ms=10)
@@ -220,6 +231,7 @@ if __name__ == '__main__':
         swarm.reset_estimators()
         time.sleep(1)
 
+        print("FLIGHT START")
         swarm.parallel_safe(start_logger)
         time.sleep(0.1)
 
@@ -233,4 +245,5 @@ if __name__ == '__main__':
 
         stop_logger(LOGGERS)
 
+        time.sleep(0.1)
         plot_metrics()
