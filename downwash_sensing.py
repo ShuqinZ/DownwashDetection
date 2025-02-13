@@ -74,6 +74,8 @@ log_vars_lock = Lock()
 
 LOGGERS = []
 
+PLOTTING = True
+
 
 def restart(uri):
     if isinstance(uri, list):
@@ -159,11 +161,11 @@ def plot_metrics(file=""):
 
 def plot_realtime(fps=30):
     """ Function to update real-time plots in a separate thread."""
-    global log_vars
+    global log_vars, PLOTTING
     plt.ion()
     fig, axes = plt.subplots(nrows=len(log_vars.keys()), ncols=1, figsize=(12, 8))
 
-    while True:
+    while PLOTTING:
         with log_vars_lock:
             for ax in axes:
                 ax.clear()
@@ -188,6 +190,13 @@ def plot_realtime(fps=30):
         plt.tight_layout()
         plt.draw()
         plt.pause(1 / fps)
+    plt.close(fig)
+
+
+def stop_plot():
+    global PLOTTING
+    PLOTTING = False
+    plot_thread.join()
 
 
 def start_logger(scf):
@@ -258,7 +267,6 @@ def async_flight(scf, start_time, wait_time, duration, pwm_signal):
 
 
 if __name__ == '__main__':
-
     plot_thread = threading.Thread(target=plot_realtime, daemon=True)
     plot_thread.start()
 
@@ -285,6 +293,7 @@ if __name__ == '__main__':
         swarm.parallel_safe(async_flight, args_dict)
         time.sleep(1)
 
+        stop_plot()
         stop_logger(LOGGERS)
 
         time.sleep(0.1)
