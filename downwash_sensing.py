@@ -20,13 +20,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 import argparse
 
+LOWERFLS_URI = 'radio://0/80/2M/E7E7E7E702' # lower FLS
+UPPERFLS_URI = 'radio://0/80/2M/E7E7E7E704'  # upper FLS
+
 URI_LIST = {
-    "LowerFLS": 'radio://0/80/2M/E7E7E7E703',
-    "UpperFLS": 'radio://0/80/2M/E7E7E7E703'
+    LOWERFLS_URI,
+    UPPERFLS_URI
 }
 
 UPPER_WAIT_TIME = 0
 DURATION = 20
+PWM_SIGNAL = 35000
+
 deck_attached_event = Event()
 logging.basicConfig(level=logging.ERROR)
 
@@ -64,7 +69,7 @@ log_vars = {
 def select_uri(func):
     def wrapper(uri, *args, **kwargs):
         global URI_LIST
-        if uri == URI_LIST["LowerFLS"]:
+        if uri == LOWERFLS_URI:
             func(*args, **kwargs)
 
     return wrapper
@@ -121,8 +126,11 @@ def plot_metrics(file=""):
         plt.savefig(f'{image_name}.png', dpi=300)
 
 
-@select_uri
 def start_logger(scf):
+    global LOWERFLS_URI
+    if scf.cf.link_uri != LOWERFLS_URI:
+        return
+
     gyro_logconf = LogConfig(name='Gyro', period_in_ms=10)
     gyro_logconf.add_variable('stateEstimate.roll', 'float')
     gyro_logconf.add_variable('stateEstimate.pitch', 'float')
@@ -164,8 +172,7 @@ def start_logger(scf):
 #     for logger in loggers:
 #         logger.stop()
 
-def async_flight(scf, upper_wait_time, duration):
-        start_time = time.time()
+def async_flight(scf, start_time, wait_time, duration, pwm_signal):
         end_time = start_time + duration
 
         scf.cf.commander.send_setpoint(0, 0, 0, 0)
@@ -173,20 +180,11 @@ def async_flight(scf, upper_wait_time, duration):
         roll = 0.0
         pitch = 0.0
         yawrate = 0
-        thrust = 50000
 
         while time.time() < end_time:
-            if scf.__dict__['_link_uri'] == URI_LIST["LowerFLS"]:
-                # thrust_step = 200
-                # thrust_mult = 1
-
-                scf.cf.commander.send_setpoint(roll, pitch, yawrate, thrust)
-
-            elif scf.__dict__['_link_uri'] == URI_LIST["UpperFLS"]:
-
-                if time.time() < start_time + upper_wait_time:
-                    continue
-                scf.cf.commander.send_setpoint(roll, pitch, yawrate, thrust)
+            if time.time() < start_time + wait_time:
+                continue
+            scf.cf.commander.send_setpoint(roll, pitch, yawrate, pwm_signal)
 
         scf.cf.commander.send_setpoint(0, 0, 0, 0)
         time.sleep(0.01)
@@ -199,11 +197,17 @@ if __name__ == '__main__':
     with Swarm(URI_LIST, factory=factory) as swarm:
 
         swarm.reset_estimators()
-        time.sleep(1.0)
+        time.sleep(1)
 
         swarm.parallel_safe(start_logger)
         time.sleep(0.1)
 
-        swarm.parallel_safe(async_flight, UPPER_WAIT_TIME, DURATION)
+
+        start_time = time.time()
+        args_dict = {
+            LOWERFLS_URI: {start_time, 0, DURATION, PWM_SIGNAL},
+            UPPERFLS_URI: {start_time, UPPER_WAIT_TIME, DURATION, PWM_SIGNAL}
+        }
+        swarm.parallel_safe(async_flight, args_dict)
 
         plot_metrics()
