@@ -28,7 +28,7 @@ logging.basicConfig(level=logging.ERROR)
 
 log_vars = {
     "Gyro_data": {
-        "timestamp": {"type": "float", "unit": "s", "data": []},
+        "timestamp": [],
         "values": {
             "stateEstimate.roll": {"type": "float", "unit": "deg", "data": []},
             "stateEstimate.pitch": {"type": "float", "unit": "deg", "data": []},
@@ -37,7 +37,7 @@ log_vars = {
     },
 
     "Accel_data": {
-        "timestamp": {"type": "float", "unit": "s", "data": []},
+        "timestamp": [],
         "values": {
             "stateEstimate.ax": {"type": "float", "unit": "Gs", "data": []},
             "stateEstimate.ay": {"type": "float", "unit": "Gs", "data": []},
@@ -46,7 +46,7 @@ log_vars = {
     },
 
     "Motor_data": {
-        "timestamp": {"type": "float", "unit": "s", "data": []},
+        "timestamp": [],
         "values": {
             "motor.m1": {"type": "float", "unit": "UINT16", "data": []},
             "motor.m2": {"type": "float", "unit": "UINT16", "data": []},
@@ -62,13 +62,14 @@ def log_callback(timestamp, data, logconf):
 
     log_data = log_vars[logconf.name + "_data"]["values"]
 
-    log_vars[logconf.name + "_data"]["timestamp"]["data"].append(timestamp)
+    log_vars[logconf.name + "_data"]["timestamp"].append(timestamp)
 
-    for par in log_data["values"].keys():
+    for par in log_data.keys():
         log_data[par]["data"].append(data[par])
 
 
 def plot_metrics(file=""):
+    global log_vars
     if not os.path.exists('metrics'):
         os.makedirs('metrics', exist_ok=True)
 
@@ -80,7 +81,7 @@ def plot_metrics(file=""):
 
     filename = f"{datetime.datetime.now():%Y_%m_%d_%H_%M_%S}"
 
-    fig, axis = plt.subplots(nrows=len(log_vars.keys()), ncols=1)
+    fig, axis = plt.subplots(nrows=len(log_vars.keys()), ncols=1, figsize=(12, 8))
 
     for component, ax in zip(log_vars.keys(), axis):
         log_data = log_vars[component]["values"]
@@ -89,10 +90,13 @@ def plot_metrics(file=""):
         time_axis = (np.array(timeline) - timeline[0]) / 1000
 
         for par in log_data.keys():
-            ax.plot(time_axis, np.array(log_data[par]["data"]), label=f"{par} ({log_data[par]['unit']})")
+            line_name = "".join(par.split('.')[-1])
+            ax.plot(time_axis, np.array(log_data[par]["data"]), label=f"{line_name} ({log_data[par]['unit']})")
         ax.set_xlabel('Time (s)')
-        ax.legend()
+        ax.legend(loc="upper left")
         ax.set_title(component)
+
+    plt.tight_layout(h_pad=2)
 
     if not file:
         plt.savefig(f'metrics/{filename}.png', dpi=300)
@@ -101,6 +105,16 @@ def plot_metrics(file=""):
     else:
         image_name = "".join(file.split('.')[:-1])
         plt.savefig(f'{image_name}.png', dpi=300)
+
+
+
+def take_off_simple(scf):
+    with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
+        time.sleep(DURATION)
+        # mc.up(0.25)
+        # time.sleep(5)
+        mc.stop()
+
 
 
 if __name__ == '__main__':
@@ -134,6 +148,8 @@ if __name__ == '__main__':
         scf.cf.log.add_config(motor_logconf)
         motor_logconf.data_received_cb.add_callback(log_callback)
         motor_logconf.start()
+
+        take_off_simple(scf)
 
         time.sleep(DURATION)
 
