@@ -130,7 +130,6 @@ if __name__ == '__main__':
         gyro_logconf.add_variable('stateEstimate.yaw', 'float')
         scf.cf.log.add_config(gyro_logconf)
         gyro_logconf.data_received_cb.add_callback(log_callback)
-        gyro_logconf.start()
 
         accel_logconf = LogConfig(name='Accel', period_in_ms=10)
         accel_logconf.add_variable('stateEstimate.ax', 'float')
@@ -138,7 +137,6 @@ if __name__ == '__main__':
         accel_logconf.add_variable('stateEstimate.az', 'float')
         scf.cf.log.add_config(accel_logconf)
         accel_logconf.data_received_cb.add_callback(log_callback)
-        accel_logconf.start()
 
         motor_logconf = LogConfig(name='Motor', period_in_ms=10)
         motor_logconf.add_variable('motor.m1', 'uint16_t')
@@ -147,9 +145,18 @@ if __name__ == '__main__':
         motor_logconf.add_variable('motor.m4', 'uint16_t')
         scf.cf.log.add_config(motor_logconf)
         motor_logconf.data_received_cb.add_callback(log_callback)
+
+        # Start Logger
+        gyro_logconf.start()
+        accel_logconf.start()
         motor_logconf.start()
 
-        take_off_simple(scf)
+        roll = 0.0
+        pitch = 0.0
+        yawrate = 0
+        thrust = 10001
+
+        scf.cf.commander.send_setpoint(roll, pitch, yawrate, thrust)
 
         time.sleep(DURATION)
 
