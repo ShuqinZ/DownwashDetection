@@ -16,11 +16,12 @@ from cflib.crazyflie.swarm import CachedCfFactory
 from cflib.crazyflie.swarm import Swarm
 from cflib.positioning.motion_commander import MotionCommander
 from cflib.utils import uri_helper
+from cflib.utils.power_switch import PowerSwitch
 import matplotlib.pyplot as plt
 import numpy as np
 import argparse
 
-LOWERFLS_URI = 'radio://0/80/2M/E7E7E7E702' # lower FLS
+LOWERFLS_URI = 'radio://0/80/2M/E7E7E7E702'  # lower FLS
 UPPERFLS_URI = 'radio://0/80/2M/E7E7E7E704'  # upper FLS
 
 URI_LIST = {
@@ -64,6 +65,14 @@ log_vars = {
         }
     },
 }
+
+
+def restart(uri):
+    if isinstance(uri, list):
+        for link in uri:
+            PowerSwitch(link).stm_power_cycle()
+    else:
+        PowerSwitch(uri).stm_power_cycle()
 
 
 def select_uri(func):
@@ -173,35 +182,34 @@ def start_logger(scf):
 #         logger.stop()
 
 def async_flight(scf, start_time, wait_time, duration, pwm_signal):
-        end_time = start_time + duration
+    end_time = start_time + duration
 
-        scf.cf.commander.send_setpoint(0, 0, 0, 0)
+    scf.cf.commander.send_setpoint(0, 0, 0, 0)
 
-        roll = 0.0
-        pitch = 0.0
-        yawrate = 0
+    roll = 0.0
+    pitch = 0.0
+    yawrate = 0
 
-        while time.time() < end_time:
-            if time.time() < start_time + wait_time:
-                continue
-            scf.cf.commander.send_setpoint(roll, pitch, yawrate, pwm_signal)
+    while time.time() < end_time:
+        if time.time() < start_time + wait_time:
+            continue
+        scf.cf.commander.send_setpoint(roll, pitch, yawrate, pwm_signal)
 
-        scf.cf.commander.send_setpoint(0, 0, 0, 0)
-        time.sleep(0.01)
+    scf.cf.commander.send_setpoint(0, 0, 0, 0)
+    time.sleep(0.01)
 
 
 if __name__ == '__main__':
+    restart([LOWERFLS_URI, UPPERFLS_URI])
     cflib.crtp.init_drivers()
 
     factory = CachedCfFactory(rw_cache='./cache')
     with Swarm(URI_LIST, factory=factory) as swarm:
-
         swarm.reset_estimators()
         time.sleep(1)
 
         swarm.parallel_safe(start_logger)
         time.sleep(0.1)
-
 
         start_time = time.time()
         args_dict = {
