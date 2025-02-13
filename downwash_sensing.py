@@ -163,7 +163,7 @@ if __name__ == '__main__':
         while thrust >= 20000:
             scf.cf.commander.send_setpoint(roll, pitch, yawrate, thrust)
             time.sleep(0.1)
-            if thrust >= 25000:
+            if thrust >= 50000:
                 thrust_mult = -1
             thrust += thrust_step * thrust_mult
         scf.cf.commander.send_setpoint(0, 0, 0, 0)
