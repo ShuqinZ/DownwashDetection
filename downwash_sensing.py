@@ -29,7 +29,7 @@ URI_LIST = {
     UPPERFLS_URI
 }
 
-UPPER_WAIT_TIME = 0
+UPPER_WAIT_TIME = 10
 DURATION = 20
 PWM_SIGNAL = 35000
 
@@ -89,12 +89,15 @@ def select_uri(func):
 @select_uri
 def log_callback(timestamp, data, logconf):
     # print(timestamp, data)
-
+    
     log_data = log_vars[logconf.name + "_data"]["values"]
 
     log_vars[logconf.name + "_data"]["timestamp"].append(timestamp)
 
     for par in log_data.keys():
+        value = data[par]
+        if value is None:
+            value = log_data[par]["data"][-1]
         log_data[par]["data"].append(data[par])
 
 
@@ -184,7 +187,10 @@ def stop_logger(loggers):
 
 
 def async_flight(scf, start_time, wait_time, duration, pwm_signal):
+
     end_time = start_time + duration
+
+    # print(start_time, wait_time, duration, pwm_signal, end_time)
 
     scf.cf.commander.send_setpoint(0, 0, 0, 0)
 
@@ -204,7 +210,7 @@ def async_flight(scf, start_time, wait_time, duration, pwm_signal):
 
 if __name__ == '__main__':
     restart([LOWERFLS_URI, UPPERFLS_URI])
-    time.sleep(20)
+    time.sleep(5)
 
     print("RESTART FINISHED")
     cflib.crtp.init_drivers()
@@ -215,12 +221,12 @@ if __name__ == '__main__':
         time.sleep(1)
 
         swarm.parallel_safe(start_logger)
-        time.sleep(1)
+        time.sleep(0.1)
 
         start_time = time.time()
         args_dict = {
-            LOWERFLS_URI: {start_time, 0, DURATION, PWM_SIGNAL},
-            UPPERFLS_URI: {start_time, UPPER_WAIT_TIME, DURATION, PWM_SIGNAL}
+            LOWERFLS_URI: [start_time, 0, DURATION, PWM_SIGNAL],
+            UPPERFLS_URI: [start_time, UPPER_WAIT_TIME, DURATION, PWM_SIGNAL]
         }
         swarm.parallel_safe(async_flight, args_dict)
         time.sleep(1)
