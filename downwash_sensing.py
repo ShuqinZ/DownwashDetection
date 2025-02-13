@@ -154,11 +154,21 @@ if __name__ == '__main__':
         roll = 0.0
         pitch = 0.0
         yawrate = 0
-        thrust = 10001
+        thrust = 20000
+        thrust_step = 200
+        thrust_mult = 1
 
-        scf.cf.commander.send_setpoint(roll, pitch, yawrate, thrust)
+        scf.cf.commander.send_setpoint(0, 0, 0, 0)
 
-        time.sleep(DURATION)
+        while thrust >= 20000:
+            scf.cf.commander.send_setpoint(roll, pitch, yawrate, thrust)
+            time.sleep(0.1)
+            if thrust >= 25000:
+                thrust_mult = -1
+            thrust += thrust_step * thrust_mult
+        scf.cf.commander.send_setpoint(0, 0, 0, 0)
+
+        time.sleep(1)
 
         gyro_logconf.stop()
         accel_logconf.stop()
