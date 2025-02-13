@@ -95,25 +95,27 @@ def select_uri(func):
 @select_uri
 def log_callback(timestamp, data, logconf):
     # print(timestamp, data)
+    global log_vars
 
-    log_data = log_vars[logconf.name + "_data"]["values"]
+    with log_vars_lock:
+        log_data = log_vars[logconf.name + "_data"]["values"]
 
-    if not log_data or log_data is None:
-        print(f"Missing log package: at time {timestamp}")
-        return
+        if not log_data or log_data is None:
+            print(f"Missing log package: at time {timestamp}")
+            return
 
-    if timestamp is None or not timestamp:
-        print(f"Missing timestamp: {log_vars[logconf.name + '_data']['timestamp']}")
-        return
+        if timestamp is None or not timestamp:
+            print(f"Missing timestamp: {log_vars[logconf.name + '_data']['timestamp']}")
+            return
 
-    log_vars[logconf.name + "_data"]["timestamp"].append(timestamp)
+        log_vars[logconf.name + "_data"]["timestamp"].append(timestamp)
 
-    for par in log_data.keys():
-        value = data[par]
-        if value is None:
-            print(f"Missing Reading: {par} {value}")
-            value = log_data[par]["data"][-1]
-        log_data[par]["data"].append(data[par])
+        for par in log_data.keys():
+            value = data[par]
+            if value is None:
+                print(f"Missing Reading: {par} {value}")
+                value = log_data[par]["data"][-1]
+            log_data[par]["data"].append(value)
 
 
 def plot_metrics(file=""):
