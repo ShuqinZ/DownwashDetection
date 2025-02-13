@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import sys
+import threading
 import time
 from threading import Event
 
@@ -24,6 +25,7 @@ import argparse
 UPPER_WAIT_TIME = 0
 DURATION = 10
 PWM_SIGNAL = 35000
+N_RECENT_POINTS = 1000
 
 LOWERFLS_URI = 'radio://0/80/2M/E7E7E7E702'  # lower FLS
 UPPERFLS_URI = 'radio://0/80/2M/E7E7E7E704'  # upper FLS
@@ -151,6 +153,37 @@ def plot_metrics(file=""):
         plt.savefig(f'{image_name}.png', dpi=300)
 
 
+def plot_realtime(fps=30):
+    """ Function to update real-time plots in a separate thread."""
+    global log_vars
+    plt.ion()
+    fig, axes = plt.subplots(nrows=len(log_vars.keys()), ncols=1, figsize=(12, 8))
+
+    while True:
+        for ax in axes:
+            ax.clear()
+
+        for component, ax in zip(log_vars.keys(), axes):
+            log_data = log_vars[component]["values"]
+            timeline = log_vars[component]["timestamp"]
+
+            if len(timeline) > 0:
+                time_axis = (np.array(timeline) - timeline[0]) / 1000
+                start_idx = max(0, len(time_axis) - N_RECENT_POINTS)
+                time_axis = time_axis[start_idx:]
+
+                for par in log_data.keys():
+                    data = np.array(log_data[par]["data"])[start_idx:]
+                    ax.plot(time_axis, data, label=f"{par} ({log_data[par]['unit']})")
+
+                ax.set_xlabel('Time (s)')
+                ax.legend(loc="upper left")
+                ax.set_title(component)
+
+        plt.tight_layout()
+        plt.draw()
+        plt.pause(1/fps)
+
 def start_logger(scf):
     global LOWERFLS_URI
     if scf.cf.link_uri != LOGGING_FLS:
@@ -230,6 +263,9 @@ if __name__ == '__main__':
     with Swarm(URI_LIST, factory=factory) as swarm:
         swarm.reset_estimators()
         time.sleep(1)
+
+        plot_thread = threading.Thread(target=plot_realtime, daemon=True)
+        plot_thread.start()
 
         print("FLIGHT START")
         swarm.parallel_safe(start_logger)
