@@ -8,7 +8,7 @@ import os
 import sys
 import threading
 import time
-from threading import Event
+from threading import Event, Lock
 
 import cflib.crtp
 from cflib.crazyflie import Crazyflie
@@ -70,6 +70,8 @@ log_vars = {
     },
 }
 
+log_vars_lock = Lock()
+
 LOGGERS = []
 
 
@@ -93,19 +95,19 @@ def select_uri(func):
 @select_uri
 def log_callback(timestamp, data, logconf):
     # print(timestamp, data)
-    
+
     log_data = log_vars[logconf.name + "_data"]["values"]
 
     if not log_data or log_data is None:
         print(f"Missing log package: at time {timestamp}")
         return
-    
+
     if timestamp is None or not timestamp:
         print(f"Missing timestamp: {log_vars[logconf.name + '_data']['timestamp']}")
         return
-    
+
     log_vars[logconf.name + "_data"]["timestamp"].append(timestamp)
-    
+
     for par in log_data.keys():
         value = data[par]
         if value is None:
@@ -160,29 +162,31 @@ def plot_realtime(fps=30):
     fig, axes = plt.subplots(nrows=len(log_vars.keys()), ncols=1, figsize=(12, 8))
 
     while True:
-        for ax in axes:
-            ax.clear()
+        with log_vars_lock:
+            for ax in axes:
+                ax.clear()
 
-        for component, ax in zip(log_vars.keys(), axes):
-            log_data = log_vars[component]["values"]
-            timeline = log_vars[component]["timestamp"]
+            for component, ax in zip(log_vars.keys(), axes):
+                log_data = log_vars[component]["values"]
+                timeline = log_vars[component]["timestamp"]
 
-            if len(timeline) > 0:
-                time_axis = (np.array(timeline) - timeline[0]) / 1000
-                start_idx = max(0, len(time_axis) - N_RECENT_POINTS)
-                time_axis = time_axis[start_idx:]
+                if len(timeline) > 0:
+                    time_axis = (np.array(timeline) - timeline[0]) / 1000
+                    start_idx = max(0, len(time_axis) - N_RECENT_POINTS)
+                    time_axis = time_axis[start_idx:]
 
-                for par in log_data.keys():
-                    data = np.array(log_data[par]["data"])[start_idx:]
-                    ax.plot(time_axis, data, label=f"{par} ({log_data[par]['unit']})")
+                    for par in log_data.keys():
+                        data = np.array(log_data[par]["data"])[start_idx:]
+                        ax.plot(time_axis, data, label=f"{par} ({log_data[par]['unit']})")
 
-                ax.set_xlabel('Time (s)')
-                ax.legend(loc="upper left")
-                ax.set_title(component)
+                    ax.set_xlabel('Time (s)')
+                    ax.legend(loc="upper left")
+                    ax.set_title(component)
 
         plt.tight_layout()
         plt.draw()
-        plt.pause(1/fps)
+        plt.pause(1 / fps)
+
 
 def start_logger(scf):
     global LOWERFLS_URI
@@ -231,7 +235,6 @@ def stop_logger(loggers):
 
 
 def async_flight(scf, start_time, wait_time, duration, pwm_signal):
-
     end_time = start_time + duration
 
     # print(start_time, wait_time, duration, pwm_signal, end_time)
@@ -253,6 +256,10 @@ def async_flight(scf, start_time, wait_time, duration, pwm_signal):
 
 
 if __name__ == '__main__':
+
+    plot_thread = threading.Thread(target=plot_realtime, daemon=True)
+    plot_thread.start()
+
     restart([LOWERFLS_URI, UPPERFLS_URI])
     time.sleep(5)
 
@@ -263,9 +270,6 @@ if __name__ == '__main__':
     with Swarm(URI_LIST, factory=factory) as swarm:
         swarm.reset_estimators()
         time.sleep(1)
-
-        plot_thread = threading.Thread(target=plot_realtime, daemon=True)
-        plot_thread.start()
 
         print("FLIGHT START")
         swarm.parallel_safe(start_logger)
