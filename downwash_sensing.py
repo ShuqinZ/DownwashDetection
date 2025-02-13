@@ -25,7 +25,8 @@ import argparse
 UPPER_WAIT_TIME = 0
 DURATION = 10
 PWM_SIGNAL = 35000
-N_RECENT_POINTS = 1000
+RECENT_TIME = 1  # sec
+LOGRATE = 100  # Hz
 
 LOWERFLS_URI = 'radio://0/80/2M/E7E7E7E702'  # lower FLS
 UPPERFLS_URI = 'radio://0/80/2M/E7E7E7E704'  # upper FLS
@@ -159,9 +160,11 @@ def plot_metrics(file=""):
         plt.savefig(f'{image_name}.png', dpi=300)
 
 
-def plot_realtime(fps=30):
+def plot_realtime(fps=50):
     """ Function to update real-time plots in a separate thread."""
-    global log_vars, PLOTTING
+    global log_vars, PLOTTING, RECENT_TIME, LOGRATE
+
+    n = RECENT_TIME / LOGRATE
     plt.ion()
     fig, axes = plt.subplots(nrows=len(log_vars.keys()), ncols=1, figsize=(12, 8))
 
@@ -176,7 +179,7 @@ def plot_realtime(fps=30):
 
                 if len(timeline) > 0:
                     time_axis = (np.array(timeline) - timeline[0]) / 1000
-                    start_idx = max(0, len(time_axis) - N_RECENT_POINTS)
+                    start_idx = max(0, len(time_axis) - n)
                     time_axis = time_axis[start_idx:]
 
                     for par in log_data.keys():
@@ -200,11 +203,11 @@ def stop_plot():
 
 
 def start_logger(scf):
-    global LOWERFLS_URI
+    global LOWERFLS_URI, LOGRATE
     if scf.cf.link_uri != LOGGING_FLS:
         return
 
-    gyro_logconf = LogConfig(name='Gyro', period_in_ms=10)
+    gyro_logconf = LogConfig(name='Gyro', period_in_ms=1000/LOGRATE)
     gyro_logconf.add_variable('stateEstimate.roll', 'float')
     gyro_logconf.add_variable('stateEstimate.pitch', 'float')
     gyro_logconf.add_variable('stateEstimate.yaw', 'float')
@@ -213,7 +216,7 @@ def start_logger(scf):
         lambda timestamp, data, logconf: log_callback(scf.cf.link_uri, timestamp, data, logconf)
     )
 
-    accel_logconf = LogConfig(name='Accel', period_in_ms=10)
+    accel_logconf = LogConfig(name='Accel', period_in_ms=1000/LOGRATE)
     accel_logconf.add_variable('stateEstimate.ax', 'float')
     accel_logconf.add_variable('stateEstimate.ay', 'float')
     accel_logconf.add_variable('stateEstimate.az', 'float')
@@ -222,7 +225,7 @@ def start_logger(scf):
         lambda timestamp, data, logconf: log_callback(scf.cf.link_uri, timestamp, data, logconf)
     )
 
-    motor_logconf = LogConfig(name='Motor', period_in_ms=10)
+    motor_logconf = LogConfig(name='Motor', period_in_ms=1000/LOGRATE)
     motor_logconf.add_variable('motor.m1', 'uint16_t')
     motor_logconf.add_variable('motor.m2', 'uint16_t')
     motor_logconf.add_variable('motor.m3', 'uint16_t')
