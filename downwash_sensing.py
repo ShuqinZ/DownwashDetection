@@ -68,6 +68,7 @@ log_vars = {
 
 LOGGERS = []
 
+
 def restart(uri):
     if isinstance(uri, list):
         for link in uri:
@@ -181,6 +182,7 @@ def stop_logger(loggers):
     for logger in loggers:
         logger.stop()
 
+
 def async_flight(scf, start_time, wait_time, duration, pwm_signal):
     end_time = start_time + duration
 
@@ -195,7 +197,8 @@ def async_flight(scf, start_time, wait_time, duration, pwm_signal):
             continue
         scf.cf.commander.send_setpoint(roll, pitch, yawrate, pwm_signal)
 
-    scf.cf.commander.send_setpoint(0, 0, 0, 0)
+    scf.cf.commander.send_stop_setpoint()
+    scf.cf.commander.send_notify_setpoint_stop()
     time.sleep(0.01)
 
 
@@ -214,7 +217,6 @@ if __name__ == '__main__':
         swarm.parallel_safe(start_logger)
         time.sleep(1)
 
-        
         start_time = time.time()
         args_dict = {
             LOWERFLS_URI: {start_time, 0, DURATION, PWM_SIGNAL},
