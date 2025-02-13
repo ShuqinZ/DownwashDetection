@@ -66,6 +66,7 @@ log_vars = {
     },
 }
 
+LOGGERS = []
 
 def restart(uri):
     if isinstance(uri, list):
@@ -173,13 +174,12 @@ def start_logger(scf):
     accel_logconf.start()
     motor_logconf.start()
 
-    # return [gyro_logconf, accel_logconf, motor_logconf]
+    LOGGERS.extend([gyro_logconf, accel_logconf, motor_logconf])
 
 
-# @select_uri
-# def stop_logger(scf, loggers):
-#     for logger in loggers:
-#         logger.stop()
+def stop_logger(loggers):
+    for logger in loggers:
+        logger.stop()
 
 def async_flight(scf, start_time, wait_time, duration, pwm_signal):
     end_time = start_time + duration
@@ -201,6 +201,9 @@ def async_flight(scf, start_time, wait_time, duration, pwm_signal):
 
 if __name__ == '__main__':
     restart([LOWERFLS_URI, UPPERFLS_URI])
+    time.sleep(20)
+
+    print("RESTART FINISHED")
     cflib.crtp.init_drivers()
 
     factory = CachedCfFactory(rw_cache='./cache')
@@ -209,13 +212,17 @@ if __name__ == '__main__':
         time.sleep(1)
 
         swarm.parallel_safe(start_logger)
-        time.sleep(0.1)
+        time.sleep(1)
 
+        
         start_time = time.time()
         args_dict = {
             LOWERFLS_URI: {start_time, 0, DURATION, PWM_SIGNAL},
             UPPERFLS_URI: {start_time, UPPER_WAIT_TIME, DURATION, PWM_SIGNAL}
         }
         swarm.parallel_safe(async_flight, args_dict)
+        time.sleep(1)
+
+        stop_logger(LOGGERS)
 
         plot_metrics()
