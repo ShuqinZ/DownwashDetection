@@ -28,7 +28,6 @@ PWM_SIGNAL = 35000
 RECENT_TIME = 1  # sec
 LOGRATE = 100  # Hz
 
-
 PLOTTING = False
 
 CONFIG = "x0_z6"
@@ -76,16 +75,17 @@ log_vars = {
     },
 
     "Power_data": {
-            "timestamp": [],
-            "values": {
-                "pm.vbatMV": {"type": "uint16_t", "unit": "mV", "data": []},
-            }
-        },
+        "timestamp": [],
+        "values": {
+            "pm.vbatMV": {"type": "uint16_t", "unit": "mV", "data": []},
+        }
+    },
 }
 
 log_vars_lock = Lock()
 
 LOGGERS = []
+
 
 def restart(uri):
     if isinstance(uri, list):
@@ -130,20 +130,22 @@ def log_callback(timestamp, data, logconf):
             log_data[par]["data"].append(value)
 
 
+def load_data(filepath):
+    with open(filepath) as f:
+        json_data = json.load(f)
+    return json_data
+
 def plot_metrics(config, file=""):
     global log_vars
     if not os.path.exists('metrics'):
         os.makedirs('metrics', exist_ok=True)
 
     if not os.path.exists('metrics/' + config):
-        os.makedirs('metrics/'+ config, exist_ok=True)
-
+        os.makedirs('metrics/' + config, exist_ok=True)
 
     if file:
-        with open(file) as f:
-            json_data = json.load(f)
-            _time = json_data["time"]
-            log_vars = json_data["params"]
+        filepath = os.path.join("metrics", config, file)
+        log_vars = load_data(filepath)
 
     filename = f"{datetime.datetime.now():%Y_%m_%d_%H_%M_%S}"
 
@@ -222,7 +224,7 @@ def start_logger(scf):
     if scf.cf.link_uri != LOGGING_FLS:
         return
 
-    gyro_logconf = LogConfig(name='Gyro', period_in_ms=1000/LOGRATE)
+    gyro_logconf = LogConfig(name='Gyro', period_in_ms=1000 / LOGRATE)
     gyro_logconf.add_variable('stateEstimate.roll', 'float')
     gyro_logconf.add_variable('stateEstimate.pitch', 'float')
     gyro_logconf.add_variable('stateEstimate.yaw', 'float')
@@ -231,7 +233,7 @@ def start_logger(scf):
         lambda timestamp, data, logconf: log_callback(scf.cf.link_uri, timestamp, data, logconf)
     )
 
-    accel_logconf = LogConfig(name='Accel', period_in_ms=1000/LOGRATE)
+    accel_logconf = LogConfig(name='Accel', period_in_ms=1000 / LOGRATE)
     accel_logconf.add_variable('stateEstimate.ax', 'float')
     accel_logconf.add_variable('stateEstimate.ay', 'float')
     accel_logconf.add_variable('stateEstimate.az', 'float')
@@ -240,7 +242,7 @@ def start_logger(scf):
         lambda timestamp, data, logconf: log_callback(scf.cf.link_uri, timestamp, data, logconf)
     )
 
-    motor_logconf = LogConfig(name='Motor', period_in_ms=1000/LOGRATE)
+    motor_logconf = LogConfig(name='Motor', period_in_ms=1000 / LOGRATE)
     motor_logconf.add_variable('motor.m1', 'uint16_t')
     motor_logconf.add_variable('motor.m2', 'uint16_t')
     motor_logconf.add_variable('motor.m3', 'uint16_t')
