@@ -30,7 +30,7 @@ LOGRATE = 100  # Hz
 
 PLOTTING = False
 
-CONFIG = "x0_z6"
+CONFIG = "x0_z8"
 
 LOWERFLS_URI = 'radio://0/80/2M/E7E7E7E702'  # lower FLS
 UPPERFLS_URI = 'radio://0/80/2M/E7E7E7E704'  # upper FLS
@@ -50,7 +50,7 @@ log_vars = {
         "timestamp": [],
         "component": {
             "Gyro": {
-                "range": [-180, 180],
+                "range": [-45, 4 0],
                 "value": {
                     "stateEstimate.roll": {"type": "float", "unit": "deg", "data": []},
                     "stateEstimate.pitch": {"type": "float", "unit": "deg", "data": []},
@@ -68,7 +68,7 @@ log_vars = {
         }
     },
 
-    "Motor": {
+    "Motor_Voltage": {
         "timestamp": [],
         "component": {
             "pwm": {
@@ -82,7 +82,7 @@ log_vars = {
             },
 
             "voltage": {
-                "range": [0, 37000],
+                "range": [0, 3700],
                 "value": {
                     "pm.vbatMV": {"type": "uint16_t", "unit": "mV", "data": []},
                 }
@@ -121,9 +121,9 @@ def log_callback(timestamp, data, logconf):
         log_vars[logconf.name]["timestamp"].append(timestamp)
         for item in log_vars[logconf.name]["component"].keys():
             log_component = log_vars[logconf.name]["component"][item]
-            for par in item["values"].keys():
+            for par in log_component["value"].keys():
                 value = data[par]
-                log_component[par]["data"].append(value)
+                log_component["value"][par]["data"].append(value)
 
 
 def load_data(filepath):
@@ -146,7 +146,11 @@ def plot_metrics(config, file=""):
 
     filename = f"{datetime.datetime.now():%Y_%m_%d_%H_%M_%S}"
 
-    fig, axes = plt.subplots(nrows=len(log_vars.keys()), ncols=1, figsize=(12, 10))
+    sub_plot_num = 0
+    for name in log_vars.keys():
+        sub_plot_num += len(name.split("_"))
+
+    fig, axes = plt.subplots(nrows=sub_plot_num, ncols=1, figsize=(12, 10))
 
     with log_vars_lock:
         ax_index = 0
@@ -161,9 +165,9 @@ def plot_metrics(config, file=""):
                     ax = axes[ax_index]
                     log_component = log_components[component]
 
-                    for par in log_component.keys():
-                        data = np.array(log_component[par]["data"])
-                        ax.plot(time_axis, data, label=f"{par} ({log_component[par]['unit']})")
+                    for par in log_component["value"].keys():
+                        data = np.array(log_component["value"][par]["data"])
+                        ax.plot(time_axis, data, label=f"{par} ({log_component['value'][par]['unit']})")
                     ax.set_xlabel('Time (s)')
                     ax.legend(loc="upper left")
                     ax.set_ylim(log_component["range"][0], log_component["range"][1])
@@ -186,47 +190,50 @@ def plot_realtime(fps=50):
     global log_vars, PLOTTING, RECENT_TIME, LOGRATE
 
     n = int(np.floor(RECENT_TIME * 1000 / LOGRATE))
-    plt.ion()
+    try:
+        plt.ion()
 
-    sub_plot_num = 0
-    for name in log_vars.keys():
-        sub_plot_num += len(name.split("_")) - 1
+        sub_plot_num = 0
+        for name in log_vars.keys():
+            sub_plot_num += len(name.split("_"))
 
-    fig, axes = plt.subplots(nrows=sub_plot_num, ncols=1, figsize=(12, 10))
+        fig, axes = plt.subplots(nrows=sub_plot_num, ncols=1, figsize=(12, 10))
 
-    while PLOTTING:
-        with log_vars_lock:
-            for ax in axes:
-                ax.clear()
+        while PLOTTING:
+            with log_vars_lock:
+                for ax in axes:
+                    ax.clear()
 
-            ax_index = 0
-            for logs in log_vars.keys():
-                timeline = log_vars[logs]["timestamp"]
-                log_components = log_vars[logs]["component"]
+                ax_index = 0
+                for logs in log_vars.keys():
+                    timeline = log_vars[logs]["timestamp"]
+                    log_components = log_vars[logs]["component"]
 
-                if len(timeline) > 0:
-                    time_axis = (np.array(timeline) - timeline[0]) / 1000
-                    start_idx = max(0, len(time_axis) - n)
-                    time_axis = time_axis[start_idx:]
+                    if len(timeline) > 0:
+                        time_axis = (np.array(timeline) - timeline[0]) / 1000
+                        start_idx = max(0, len(time_axis) - n)
+                        time_axis = time_axis[start_idx:]
 
-                    for component in log_components.keys():
-                        ax = axes[ax_index]
-                        log_component = log_components[component]
+                        for component in log_components.keys():
+                            ax = axes[ax_index]
+                            log_component = log_components[component]
 
-                        for par in log_component.keys():
-                            data = np.array(log_component[par]["data"])[start_idx:]
-                            ax.plot(time_axis, data, label=f"{par} ({log_component[par]['unit']})")
-                        ax.set_xlabel('Time (s)')
-                        ax.legend(loc="upper left")
-                        ax.set_ylim(log_component["range"][0], log_component["range"][1])
-                        ax.set_title(component)
-                        ax_index += 1
+                            for par in log_component["value"].keys():
+                                data = np.array(log_component["value"][par]["data"])[start_idx:]
+                                ax.plot(time_axis, data, label=f"{par} ({log_component['value'][par]['unit']})")
+                            ax.set_xlabel('Time (s)')
+                            ax.legend(loc="upper left")
+                            ax.set_ylim(log_component["range"][0], log_component["range"][1])
+                            ax.set_title(component)
+                            ax_index += 1
 
-        plt.tight_layout(h_pad=2)
-        plt.draw()
-        plt.pause(1 / fps)
+            plt.tight_layout(h_pad=2)
+            plt.draw()
+            plt.pause(0.01)
 
-    plt.close(fig)
+        plt.close(fig)
+    except:
+        pass
 
 
 def stop_plot(plot_thread):
@@ -241,7 +248,7 @@ def start_logger(scf):
     if scf.cf.link_uri != LOGGING_FLS:
         return
 
-    gyro_accel_logconf = LogConfig(name='Gyro_3_Accel_3', period_in_ms=1000 / LOGRATE)
+    gyro_accel_logconf = LogConfig(name='Gyro_Accel', period_in_ms=1000 / LOGRATE)
     gyro_accel_logconf.add_variable('stateEstimate.roll', 'float')
     gyro_accel_logconf.add_variable('stateEstimate.pitch', 'float')
     gyro_accel_logconf.add_variable('stateEstimate.yaw', 'float')
@@ -262,7 +269,7 @@ def start_logger(scf):
     #     lambda timestamp, data, logconf: log_callback(scf.cf.link_uri, timestamp, data, logconf)
     # )
 
-    motor_logconf = LogConfig(name='Motor', period_in_ms=1000 / LOGRATE)
+    motor_logconf = LogConfig(name='Motor_Voltage', period_in_ms=1000 / LOGRATE)
     motor_logconf.add_variable('motor.m1', 'uint16_t')
     motor_logconf.add_variable('motor.m2', 'uint16_t')
     motor_logconf.add_variable('motor.m3', 'uint16_t')
