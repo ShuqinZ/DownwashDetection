@@ -22,8 +22,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import argparse
 
-UPPER_WAIT_TIME = 10
-DURATION = 15
+EXPERIMENT_NUM = 10
+PREP_TIME = 5
+UPPER_WAIT_TIME = 5
+DURATION = 10
+GAP_TIME = 2
 PWM_SIGNAL = 35000
 RECENT_TIME = 1  # sec
 LOGRATE = 100  # Hz
@@ -45,56 +48,62 @@ URI_LIST = {
 deck_attached_event = Event()
 logging.basicConfig(level=logging.ERROR)
 
-log_vars = {
-    "Gyro_Accel": {
-        "timestamp": [],
-        "component": {
-            "Gyro": {
-                "range": [-45, 4 0],
-                "value": {
-                    "stateEstimate.roll": {"type": "float", "unit": "deg", "data": []},
-                    "stateEstimate.pitch": {"type": "float", "unit": "deg", "data": []},
-                    "stateEstimate.yaw": {"type": "float", "unit": "deg", "data": []},
-                }
-            },
-            "Accel": {
-                "range": [-1, 1],
-                "value": {
-                    "stateEstimate.ax": {"type": "float", "unit": "Gs", "data": []},
-                    "stateEstimate.ay": {"type": "float", "unit": "Gs", "data": []},
-                    "stateEstimate.az": {"type": "float", "unit": "Gs", "data": []}
-                }
-            }
-        }
-    },
-
-    "Motor_Voltage": {
-        "timestamp": [],
-        "component": {
-            "pwm": {
-                "range": [0, 65535],
-                "value": {
-                    "motor.m1": {"type": "uint16_t", "unit": "pwm_value", "data": []},
-                    "motor.m2": {"type": "uint16_t", "unit": "pwm_value", "data": []},
-                    "motor.m3": {"type": "uint16_t", "unit": "pwm_value", "data": []},
-                    "motor.m4": {"type": "uint16_t", "unit": "pwm_value", "data": []},
-                },
-            },
-
-            "voltage": {
-                "range": [0, 3700],
-                "value": {
-                    "pm.vbatMV": {"type": "uint16_t", "unit": "mV", "data": []},
-                }
-            }
-        }
-    },
-}
+log_vars = {}
 
 log_vars_lock = Lock()
 
 LOGGERS = []
 
+
+def reset_log_vars():
+    global log_vars
+
+    with log_vars_lock:
+        log_vars = {
+            "Gyro_Accel": {
+                "timestamp": [],
+                "component": {
+                    "Gyro": {
+                        "range": [-45, 45],
+                        "value": {
+                            "stateEstimate.roll": {"type": "float", "unit": "deg", "data": []},
+                            "stateEstimate.pitch": {"type": "float", "unit": "deg", "data": []},
+                            "stateEstimate.yaw": {"type": "float", "unit": "deg", "data": []},
+                        }
+                    },
+                    "Accel": {
+                        "range": [-1, 1],
+                        "value": {
+                            "stateEstimate.ax": {"type": "float", "unit": "Gs", "data": []},
+                            "stateEstimate.ay": {"type": "float", "unit": "Gs", "data": []},
+                            "stateEstimate.az": {"type": "float", "unit": "Gs", "data": []}
+                        }
+                    }
+                }
+            },
+
+            "Motor_Voltage": {
+                "timestamp": [],
+                "component": {
+                    "pwm": {
+                        "range": [0, 65535],
+                        "value": {
+                            "motor.m1": {"type": "uint16_t", "unit": "pwm_value", "data": []},
+                            "motor.m2": {"type": "uint16_t", "unit": "pwm_value", "data": []},
+                            "motor.m3": {"type": "uint16_t", "unit": "pwm_value", "data": []},
+                            "motor.m4": {"type": "uint16_t", "unit": "pwm_value", "data": []},
+                        },
+                    },
+
+                    "voltage": {
+                        "range": [0, 3700],
+                        "value": {
+                            "pm.vbatMV": {"type": "uint16_t", "unit": "mV", "data": []},
+                        }
+                    }
+                }
+            },
+        }
 
 def restart(uri):
     if isinstance(uri, list):
@@ -132,7 +141,7 @@ def load_data(filepath):
     return json_data
 
 
-def plot_metrics(config, file=""):
+def plot_metrics(config, file="", start_time=0, duration=0, gap_time=0, iterations=1):
     global log_vars
     if not os.path.exists('metrics'):
         os.makedirs('metrics', exist_ok=True)
@@ -144,45 +153,58 @@ def plot_metrics(config, file=""):
         filepath = os.path.join("metrics", config, file)
         log_vars = load_data(filepath)
 
-    filename = f"{datetime.datetime.now():%Y_%m_%d_%H_%M_%S}"
+    end_time = start_time + duration * iterations + max(iterations-1, 0) * gap_time
 
-    sub_plot_num = 0
-    for name in log_vars.keys():
-        sub_plot_num += len(name.split("_"))
+    filename_pre_fix = f"{datetime.datetime.now():%Y_%m_%d_%H_%M}"
 
-    fig, axes = plt.subplots(nrows=sub_plot_num, ncols=1, figsize=(12, 10))
+    save_time = start_time + duration
+    ite = 0
 
     with log_vars_lock:
-        ax_index = 0
-        for logs in log_vars.keys():
-            timeline = log_vars[logs]["timestamp"]
-            log_components = log_vars[logs]["component"]
+        while time.time() < end_time:
+            if time.time() < save_time:
+                continue
+            filename = f"{filename_pre_fix}{ite:.0f}"
+            save_time += gap_time + duration
+            ite += 1
 
-            if len(timeline) > 0:
-                time_axis = (np.array(timeline) - timeline[0]) / 1000
+            sub_plot_num = 0
+            for name in log_vars.keys():
+                sub_plot_num += len(name.split("_"))
 
-                for component in log_components.keys():
-                    ax = axes[ax_index]
-                    log_component = log_components[component]
+            fig, axes = plt.subplots(nrows=sub_plot_num, ncols=1, figsize=(12, 10))
 
-                    for par in log_component["value"].keys():
-                        data = np.array(log_component["value"][par]["data"])
-                        ax.plot(time_axis, data, label=f"{par} ({log_component['value'][par]['unit']})")
-                    ax.set_xlabel('Time (s)')
-                    ax.legend(loc="upper left")
-                    ax.set_ylim(log_component["range"][0], log_component["range"][1])
-                    ax.set_title(component)
-                    ax_index += 1
+            with log_vars_lock:
+                ax_index = 0
+                for logs in log_vars.keys():
+                    timeline = log_vars[logs]["timestamp"]
+                    log_components = log_vars[logs]["component"]
 
-    plt.tight_layout(h_pad=2)
+                    if len(timeline) > 0:
+                        time_axis = (np.array(timeline) - timeline[0]) / 1000
 
-    if not file:
-        plt.savefig(f'metrics/{config}/{filename}.png', dpi=300)
-        with open(f'metrics/{config}/{filename}.json', 'w') as f:
-            json.dump(log_vars, f, indent=4)
-    else:
-        image_name = "".join(file.split('.')[:-1])
-        plt.savefig(f'metrics/{config}/{image_name}.png', dpi=300)
+                        for component in log_components.keys():
+                            ax = axes[ax_index]
+                            log_component = log_components[component]
+
+                            for par in log_component["value"].keys():
+                                data = np.array(log_component["value"][par]["data"])
+                                ax.plot(time_axis, data, label=f"{par} ({log_component['value'][par]['unit']})")
+                            ax.set_xlabel('Time (s)')
+                            ax.legend(loc="upper left")
+                            ax.set_ylim(log_component["range"][0], log_component["range"][1])
+                            ax.set_title(component)
+                            ax_index += 1
+
+            plt.tight_layout(h_pad=2)
+
+            if not file:
+                plt.savefig(f'metrics/{config}/{filename}.png', dpi=300)
+                with open(f'metrics/{config}/{filename}.json', 'w') as f:
+                    json.dump(log_vars, f, indent=4)
+            else:
+                image_name = "".join(file.split('.')[:-1])
+                plt.savefig(f'metrics/{config}/{image_name}.png', dpi=300)
 
 
 def plot_realtime(fps=50):
@@ -303,10 +325,7 @@ def stop_logger(loggers):
         logger.stop()
 
 
-def async_flight(scf, start_time, wait_time, duration, pwm_signal):
-    end_time = start_time + duration
-
-    # print(start_time, wait_time, duration, pwm_signal, end_time)
+def async_flight(scf, start_time, iterations, stablize_time, wait_time, duration, gap_time, pwm_signal):
 
     scf.cf.commander.send_setpoint(0, 0, 0, 0)
 
@@ -314,10 +333,19 @@ def async_flight(scf, start_time, wait_time, duration, pwm_signal):
     pitch = 0.0
     yawrate = 0
 
-    while time.time() < end_time:
-        if time.time() < start_time + wait_time:
-            continue
-        scf.cf.commander.send_setpoint(roll, pitch, yawrate, pwm_signal)
+    while time.time() < start_time + stablize_time:
+        scf.cf.commander.send_setpoint(0.0, 0.0, 0, pwm_signal)
+
+    start_time += stablize_time
+
+    for i in range(iterations):
+        ite_start_time = start_time + duration * i
+        ite_end_time = time.time() + duration
+
+        while time.time() < ite_end_time:
+            if time.time() < ite_start_time + wait_time + gap_time:
+                continue
+            scf.cf.commander.send_setpoint(roll, pitch, yawrate, pwm_signal)
 
     scf.cf.commander.send_stop_setpoint()
     scf.cf.commander.send_notify_setpoint_stop()
@@ -326,11 +354,12 @@ def async_flight(scf, start_time, wait_time, duration, pwm_signal):
 
 if __name__ == '__main__':
     if PLOTTING:
-        plot_thread = threading.Thread(target=plot_realtime, daemon=True)
-        plot_thread.start()
+        realtime_plot_thread = threading.Thread(target=plot_realtime, daemon=True)
+        realtime_plot_thread.start()
     else:
-        plot_thread = None
+        realtime_plot_thread = None
 
+    reset_log_vars()
     restart([LOWERFLS_URI, UPPERFLS_URI])
     time.sleep(5)
 
@@ -347,17 +376,26 @@ if __name__ == '__main__':
         time.sleep(0.1)
 
         start_time = time.time()
+
+        # start_time, iterations, prep_time, wait_time, duration, gap_time, pwm_signal
         args_dict = {
-            LOWERFLS_URI: [start_time, 0, DURATION, PWM_SIGNAL],
-            UPPERFLS_URI: [start_time, UPPER_WAIT_TIME, DURATION, PWM_SIGNAL]
+            LOWERFLS_URI: [start_time, EXPERIMENT_NUM, PREP_TIME, 0, DURATION, GAP_TIME, PWM_SIGNAL],
+            UPPERFLS_URI: [start_time + PREP_TIME, EXPERIMENT_NUM, 0, UPPER_WAIT_TIME, DURATION, GAP_TIME, PWM_SIGNAL]
         }
+
+        save_log_thread = threading.Thread(target=plot_metrics,
+                                           kwargs={'config': CONFIG, 'start_time': start_time, 'duration': DURATION,
+                                                   'gap_time': GAP_TIME, 'iterations': EXPERIMENT_NUM}, daemon=True)
+
         swarm.parallel_safe(async_flight, args_dict)
         stop_logger(LOGGERS)
-        time.sleep(1)
+        # time.sleep(1)
 
-    plot_metrics(config=CONFIG)
+
+    # plot_metrics(config=CONFIG)
+    save_log_thread.join()
 
     try:
-        stop_plot(plot_thread)
+        stop_plot(realtime_plot_thread)
     except:
         pass
