@@ -46,38 +46,47 @@ deck_attached_event = Event()
 logging.basicConfig(level=logging.ERROR)
 
 log_vars = {
-    "Gyro_data": {
+    "Gyro_Accel": {
         "timestamp": [],
-        "values": {
-            "stateEstimate.roll": {"type": "float", "unit": "deg", "data": []},
-            "stateEstimate.pitch": {"type": "float", "unit": "deg", "data": []},
-            "stateEstimate.yaw": {"type": "float", "unit": "deg", "data": []}
+        "component": {
+            "Gyro": {
+                "range": [-180, 180],
+                "value": {
+                    "stateEstimate.roll": {"type": "float", "unit": "deg", "data": []},
+                    "stateEstimate.pitch": {"type": "float", "unit": "deg", "data": []},
+                    "stateEstimate.yaw": {"type": "float", "unit": "deg", "data": []},
+                }
+            },
+            "Accel": {
+                "range": [-1, 1],
+                "value": {
+                    "stateEstimate.ax": {"type": "float", "unit": "Gs", "data": []},
+                    "stateEstimate.ay": {"type": "float", "unit": "Gs", "data": []},
+                    "stateEstimate.az": {"type": "float", "unit": "Gs", "data": []}
+                }
+            }
         }
     },
 
-    "Accel_data": {
+    "Motor": {
         "timestamp": [],
-        "values": {
-            "stateEstimate.ax": {"type": "float", "unit": "Gs", "data": []},
-            "stateEstimate.ay": {"type": "float", "unit": "Gs", "data": []},
-            "stateEstimate.az": {"type": "float", "unit": "Gs", "data": []},
-        }
-    },
+        "component": {
+            "pwm": {
+                "range": [0, 65535],
+                "value": {
+                    "motor.m1": {"type": "uint16_t", "unit": "pwm_value", "data": []},
+                    "motor.m2": {"type": "uint16_t", "unit": "pwm_value", "data": []},
+                    "motor.m3": {"type": "uint16_t", "unit": "pwm_value", "data": []},
+                    "motor.m4": {"type": "uint16_t", "unit": "pwm_value", "data": []},
+                },
+            },
 
-    "Motor_data": {
-        "timestamp": [],
-        "values": {
-            "motor.m1": {"type": "uint16_t", "unit": "UINT16", "data": []},
-            "motor.m2": {"type": "uint16_t", "unit": "UINT16", "data": []},
-            "motor.m3": {"type": "uint16_t", "unit": "UINT16", "data": []},
-            "motor.m4": {"type": "uint16_t", "unit": "UINT16", "data": []},
-        }
-    },
-
-    "Power_data": {
-        "timestamp": [],
-        "values": {
-            "pm.vbatMV": {"type": "uint16_t", "unit": "mV", "data": []},
+            "voltage": {
+                "range": [0, 37000],
+                "value": {
+                    "pm.vbatMV": {"type": "uint16_t", "unit": "mV", "data": []},
+                }
+            }
         }
     },
 }
@@ -106,34 +115,22 @@ def select_uri(func):
 
 @select_uri
 def log_callback(timestamp, data, logconf):
-    # print(timestamp, data)
     global log_vars
 
     with log_vars_lock:
-        log_data = log_vars[logconf.name + "_data"]["values"]
-
-        if not log_data or log_data is None:
-            print(f"Missing log package: at time {timestamp}")
-            return
-
-        if timestamp is None or not timestamp:
-            print(f"Missing timestamp: {log_vars[logconf.name + '_data']['timestamp']}")
-            return
-
-        log_vars[logconf.name + "_data"]["timestamp"].append(timestamp)
-
-        for par in log_data.keys():
-            value = data[par]
-            if value is None:
-                print(f"Missing Reading: {par} {value}")
-                value = log_data[par]["data"][-1]
-            log_data[par]["data"].append(value)
+        log_vars[logconf.name]["timestamp"].append(timestamp)
+        for item in log_vars[logconf.name]["component"].keys():
+            log_component = log_vars[logconf.name]["component"][item]
+            for par in item["values"].keys():
+                value = data[par]
+                log_component[par]["data"].append(value)
 
 
 def load_data(filepath):
     with open(filepath) as f:
         json_data = json.load(f)
     return json_data
+
 
 def plot_metrics(config, file=""):
     global log_vars
@@ -149,20 +146,29 @@ def plot_metrics(config, file=""):
 
     filename = f"{datetime.datetime.now():%Y_%m_%d_%H_%M_%S}"
 
-    fig, axis = plt.subplots(nrows=len(log_vars.keys()), ncols=1, figsize=(12, 10))
+    fig, axes = plt.subplots(nrows=len(log_vars.keys()), ncols=1, figsize=(12, 10))
 
-    for component, ax in zip(log_vars.keys(), axis):
-        log_data = log_vars[component]["values"]
+    with log_vars_lock:
+        ax_index = 0
+        for logs in log_vars.keys():
+            timeline = log_vars[logs]["timestamp"]
+            log_components = log_vars[logs]["component"]
 
-        timeline = log_vars[component]["timestamp"]
-        time_axis = (np.array(timeline) - timeline[0]) / 1000
+            if len(timeline) > 0:
+                time_axis = (np.array(timeline) - timeline[0]) / 1000
 
-        for par in log_data.keys():
-            line_name = "".join(par.split('.')[-1])
-            ax.plot(time_axis, np.array(log_data[par]["data"]), label=f"{line_name} ({log_data[par]['unit']})")
-        ax.set_xlabel('Time (s)')
-        ax.legend(loc="upper left")
-        ax.set_title(component)
+                for component in log_components.keys():
+                    ax = axes[ax_index]
+                    log_component = log_components[component]
+
+                    for par in log_component.keys():
+                        data = np.array(log_component[par]["data"])
+                        ax.plot(time_axis, data, label=f"{par} ({log_component[par]['unit']})")
+                    ax.set_xlabel('Time (s)')
+                    ax.legend(loc="upper left")
+                    ax.set_ylim(log_component["range"][0], log_component["range"][1])
+                    ax.set_title(component)
+                    ax_index += 1
 
     plt.tight_layout(h_pad=2)
 
@@ -181,31 +187,42 @@ def plot_realtime(fps=50):
 
     n = int(np.floor(RECENT_TIME * 1000 / LOGRATE))
     plt.ion()
-    fig, axes = plt.subplots(nrows=len(log_vars.keys()), ncols=1, figsize=(12, 8))
+
+    sub_plot_num = 0
+    for name in log_vars.keys():
+        sub_plot_num += len(name.split("_")) - 1
+
+    fig, axes = plt.subplots(nrows=sub_plot_num, ncols=1, figsize=(12, 10))
 
     while PLOTTING:
         with log_vars_lock:
             for ax in axes:
                 ax.clear()
 
-            for component, ax in zip(log_vars.keys(), axes):
-                log_data = log_vars[component]["values"]
-                timeline = log_vars[component]["timestamp"]
+            ax_index = 0
+            for logs in log_vars.keys():
+                timeline = log_vars[logs]["timestamp"]
+                log_components = log_vars[logs]["component"]
 
                 if len(timeline) > 0:
                     time_axis = (np.array(timeline) - timeline[0]) / 1000
                     start_idx = max(0, len(time_axis) - n)
                     time_axis = time_axis[start_idx:]
 
-                    for par in log_data.keys():
-                        data = np.array(log_data[par]["data"])[start_idx:]
-                        ax.plot(time_axis, data, label=f"{par} ({log_data[par]['unit']})")
+                    for component in log_components.keys():
+                        ax = axes[ax_index]
+                        log_component = log_components[component]
 
-                    ax.set_xlabel('Time (s)')
-                    ax.legend(loc="upper left")
-                    ax.set_title(component)
+                        for par in log_component.keys():
+                            data = np.array(log_component[par]["data"])[start_idx:]
+                            ax.plot(time_axis, data, label=f"{par} ({log_component[par]['unit']})")
+                        ax.set_xlabel('Time (s)')
+                        ax.legend(loc="upper left")
+                        ax.set_ylim(log_component["range"][0], log_component["range"][1])
+                        ax.set_title(component)
+                        ax_index += 1
 
-        plt.tight_layout()
+        plt.tight_layout(h_pad=2)
         plt.draw()
         plt.pause(1 / fps)
 
@@ -224,48 +241,54 @@ def start_logger(scf):
     if scf.cf.link_uri != LOGGING_FLS:
         return
 
-    gyro_logconf = LogConfig(name='Gyro', period_in_ms=1000 / LOGRATE)
-    gyro_logconf.add_variable('stateEstimate.roll', 'float')
-    gyro_logconf.add_variable('stateEstimate.pitch', 'float')
-    gyro_logconf.add_variable('stateEstimate.yaw', 'float')
-    scf.cf.log.add_config(gyro_logconf)
-    gyro_logconf.data_received_cb.add_callback(
+    gyro_accel_logconf = LogConfig(name='Gyro_3_Accel_3', period_in_ms=1000 / LOGRATE)
+    gyro_accel_logconf.add_variable('stateEstimate.roll', 'float')
+    gyro_accel_logconf.add_variable('stateEstimate.pitch', 'float')
+    gyro_accel_logconf.add_variable('stateEstimate.yaw', 'float')
+    gyro_accel_logconf.add_variable('stateEstimate.ax', 'float')
+    gyro_accel_logconf.add_variable('stateEstimate.ay', 'float')
+    gyro_accel_logconf.add_variable('stateEstimate.az', 'float')
+    scf.cf.log.add_config(gyro_accel_logconf)
+    gyro_accel_logconf.data_received_cb.add_callback(
         lambda timestamp, data, logconf: log_callback(scf.cf.link_uri, timestamp, data, logconf)
     )
 
-    accel_logconf = LogConfig(name='Accel', period_in_ms=1000 / LOGRATE)
-    accel_logconf.add_variable('stateEstimate.ax', 'float')
-    accel_logconf.add_variable('stateEstimate.ay', 'float')
-    accel_logconf.add_variable('stateEstimate.az', 'float')
-    scf.cf.log.add_config(accel_logconf)
-    accel_logconf.data_received_cb.add_callback(
-        lambda timestamp, data, logconf: log_callback(scf.cf.link_uri, timestamp, data, logconf)
-    )
+    # accel_logconf = LogConfig(name='Accel', period_in_ms=1000 / LOGRATE)
+    # accel_logconf.add_variable('stateEstimate.ax', 'float')
+    # accel_logconf.add_variable('stateEstimate.ay', 'float')
+    # accel_logconf.add_variable('stateEstimate.az', 'float')
+    # scf.cf.log.add_config(accel_logconf)
+    # accel_logconf.data_received_cb.add_callback(
+    #     lambda timestamp, data, logconf: log_callback(scf.cf.link_uri, timestamp, data, logconf)
+    # )
 
     motor_logconf = LogConfig(name='Motor', period_in_ms=1000 / LOGRATE)
     motor_logconf.add_variable('motor.m1', 'uint16_t')
     motor_logconf.add_variable('motor.m2', 'uint16_t')
     motor_logconf.add_variable('motor.m3', 'uint16_t')
     motor_logconf.add_variable('motor.m4', 'uint16_t')
+    motor_logconf.add_variable('pm.vbatMV', 'uint16_t')
     scf.cf.log.add_config(motor_logconf)
     motor_logconf.data_received_cb.add_callback(
         lambda timestamp, data, logconf: log_callback(scf.cf.link_uri, timestamp, data, logconf)
     )
 
-    power_logconf = LogConfig(name='Power', period_in_ms=1000 / LOGRATE)
-    power_logconf.add_variable('pm.vbatMV', 'uint16_t')
-    scf.cf.log.add_config(power_logconf)
-    power_logconf.data_received_cb.add_callback(
-        lambda timestamp, data, logconf: log_callback(scf.cf.link_uri, timestamp, data, logconf)
-    )
+    # power_logconf = LogConfig(name='Power', period_in_ms=1000 / LOGRATE)
+    # power_logconf.add_variable('pm.vbatMV', 'uint16_t')
+    # scf.cf.log.add_config(power_logconf)
+    # power_logconf.data_received_cb.add_callback(
+    #     lambda timestamp, data, logconf: log_callback(scf.cf.link_uri, timestamp, data, logconf)
+    # )
 
     # Start Logger
-    gyro_logconf.start()
-    accel_logconf.start()
+    gyro_accel_logconf.start()
+    # accel_logconf.start()
     motor_logconf.start()
-    power_logconf.start()
+    # power_logconf.start()
 
-    LOGGERS.extend([gyro_logconf, accel_logconf, motor_logconf, power_logconf])
+    LOGGERS.extend([gyro_accel_logconf, motor_logconf])
+
+    # LOGGERS.extend([gyro_logconf, accel_logconf, motor_logconf, power_logconf])
 
 
 def stop_logger(loggers):
