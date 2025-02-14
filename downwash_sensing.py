@@ -63,12 +63,19 @@ log_vars = {
     "Motor_data": {
         "timestamp": [],
         "values": {
-            "motor.m1": {"type": "float", "unit": "UINT16", "data": []},
-            "motor.m2": {"type": "float", "unit": "UINT16", "data": []},
-            "motor.m3": {"type": "float", "unit": "UINT16", "data": []},
-            "motor.m4": {"type": "float", "unit": "UINT16", "data": []},
+            "motor.m1": {"type": "uint16_t", "unit": "UINT16", "data": []},
+            "motor.m2": {"type": "uint16_t", "unit": "UINT16", "data": []},
+            "motor.m3": {"type": "uint16_t", "unit": "UINT16", "data": []},
+            "motor.m4": {"type": "uint16_t", "unit": "UINT16", "data": []},
         }
     },
+
+    "Power_data": {
+            "timestamp": [],
+            "values": {
+                "pm.vbatMV": {"type": "uint16_t", "unit": "mV", "data": []},
+            }
+        },
 }
 
 log_vars_lock = Lock()
@@ -134,7 +141,7 @@ def plot_metrics(file=""):
 
     filename = f"{datetime.datetime.now():%Y_%m_%d_%H_%M_%S}"
 
-    fig, axis = plt.subplots(nrows=len(log_vars.keys()), ncols=1, figsize=(12, 8))
+    fig, axis = plt.subplots(nrows=len(log_vars.keys()), ncols=1, figsize=(12, 10))
 
     for component, ax in zip(log_vars.keys(), axis):
         log_data = log_vars[component]["values"]
@@ -235,12 +242,20 @@ def start_logger(scf):
         lambda timestamp, data, logconf: log_callback(scf.cf.link_uri, timestamp, data, logconf)
     )
 
+    power_logconf = LogConfig(name='Power', period_in_ms=1000 / LOGRATE)
+    power_logconf.add_variable('pm.vbatMV', 'uint16_t')
+    scf.cf.log.add_config(power_logconf)
+    power_logconf.data_received_cb.add_callback(
+        lambda timestamp, data, logconf: log_callback(scf.cf.link_uri, timestamp, data, logconf)
+    )
+
     # Start Logger
     gyro_logconf.start()
     accel_logconf.start()
     motor_logconf.start()
+    power_logconf.start()
 
-    LOGGERS.extend([gyro_logconf, accel_logconf, motor_logconf])
+    LOGGERS.extend([gyro_logconf, accel_logconf, motor_logconf, power_logconf])
 
 
 def stop_logger(loggers):
