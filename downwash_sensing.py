@@ -22,16 +22,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 import argparse
 
-UPPER_WAIT_TIME = 0
-DURATION = 10
+UPPER_WAIT_TIME = 10
+DURATION = 15
 PWM_SIGNAL = 35000
 RECENT_TIME = 1  # sec
 LOGRATE = 100  # Hz
 
+
+PLOTTING = False
+
+CONFIG = "x0_z6"
+
 LOWERFLS_URI = 'radio://0/80/2M/E7E7E7E702'  # lower FLS
 UPPERFLS_URI = 'radio://0/80/2M/E7E7E7E704'  # upper FLS
 
-LOGGING_FLS = UPPERFLS_URI
+LOGGING_FLS = LOWERFLS_URI
 
 URI_LIST = {
     LOWERFLS_URI,
@@ -82,9 +87,6 @@ log_vars_lock = Lock()
 
 LOGGERS = []
 
-PLOTTING = True
-
-
 def restart(uri):
     if isinstance(uri, list):
         for link in uri:
@@ -128,10 +130,14 @@ def log_callback(timestamp, data, logconf):
             log_data[par]["data"].append(value)
 
 
-def plot_metrics(file=""):
+def plot_metrics(config, file=""):
     global log_vars
     if not os.path.exists('metrics'):
         os.makedirs('metrics', exist_ok=True)
+
+    if not os.path.exists('metrics/' + config):
+        os.makedirs('metrics/'+ config, exist_ok=True)
+
 
     if file:
         with open(file) as f:
@@ -159,12 +165,12 @@ def plot_metrics(file=""):
     plt.tight_layout(h_pad=2)
 
     if not file:
-        plt.savefig(f'metrics/{filename}.png', dpi=300)
-        with open(f'metrics/{filename}.json', 'w') as f:
+        plt.savefig(f'metrics/{config}/{filename}.png', dpi=300)
+        with open(f'metrics/{config}/{filename}.json', 'w') as f:
             json.dump(log_vars, f, indent=4)
     else:
         image_name = "".join(file.split('.')[:-1])
-        plt.savefig(f'{image_name}.png', dpi=300)
+        plt.savefig(f'metrics/{config}/{image_name}.png', dpi=300)
 
 
 def plot_realtime(fps=50):
@@ -200,13 +206,15 @@ def plot_realtime(fps=50):
         plt.tight_layout()
         plt.draw()
         plt.pause(1 / fps)
+
     plt.close(fig)
 
 
-def stop_plot():
+def stop_plot(plot_thread):
     global PLOTTING
     PLOTTING = False
-    plot_thread.join()
+    if plot_thread and plot_thread.is_alive():
+        plot_thread.join()
 
 
 def start_logger(scf):
@@ -285,8 +293,11 @@ def async_flight(scf, start_time, wait_time, duration, pwm_signal):
 
 
 if __name__ == '__main__':
-    plot_thread = threading.Thread(target=plot_realtime, daemon=True)
-    plot_thread.start()
+    if PLOTTING:
+        plot_thread = threading.Thread(target=plot_realtime, daemon=True)
+        plot_thread.start()
+    else:
+        plot_thread = None
 
     restart([LOWERFLS_URI, UPPERFLS_URI])
     time.sleep(5)
@@ -309,10 +320,12 @@ if __name__ == '__main__':
             UPPERFLS_URI: [start_time, UPPER_WAIT_TIME, DURATION, PWM_SIGNAL]
         }
         swarm.parallel_safe(async_flight, args_dict)
-        time.sleep(1)
-
-        stop_plot(plot_thread)
         stop_logger(LOGGERS)
-
         time.sleep(1)
-        plot_metrics()
+
+    plot_metrics(config=CONFIG)
+
+    try:
+        stop_plot(plot_thread)
+    except:
+        pass
