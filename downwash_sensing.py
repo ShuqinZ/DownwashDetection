@@ -96,7 +96,7 @@ def reset_log_vars():
                     },
 
                     "voltage": {
-                        "range": [0, 3700],
+                        "range": [3700, 4100],
                         "value": {
                             "pm.vbatMV": {"type": "uint16_t", "unit": "mV", "data": []},
                         }
@@ -344,10 +344,19 @@ def async_flight(scf, start_time, iterations, stablize_time, wait_time, duration
         ite_start_time = start_time + (duration + gap_time) * i
         ite_end_time = ite_start_time + duration
 
+        wait_flag = False
         while time.time() < ite_end_time:
-            if time.time() < ite_start_time + wait_time:
+            if wait_time > 0 and time.time() < ite_start_time + wait_time:
+                if wait_flag == False:
+                    heart_beat_time = time.time() + 0.5
+                    wait_flag = True
+                
+                elif wait_flag and time.time() > heart_beat_time:
+                        scf.cf.commander.send_setpoint(0, 0, 0, 0)
+                        heart_beat_time += 0.5
+
                 continue
-            # print(f"Generate_THRUST {scf.cf.link_uri}")
+
             scf.cf.commander.send_setpoint(roll, pitch, yawrate, pwm_signal)
 
         print(f"Iteration {i} finished")
@@ -401,7 +410,7 @@ if __name__ == '__main__':
         time.sleep(1)
 
     for i in range(EXPERIMENT_NUM):
-        plot_metrics(CONFIG, f"file_timestamp_{i}.json")
+        plot_metrics(CONFIG, f"{file_timestamp}_{i}.json")
 
     # plot_metrics(config=CONFIG)
     if save_log_thread and save_log_thread.is_alive():
