@@ -22,12 +22,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import argparse
 
-EXPERIMENT_NUM = 10
-PREP_TIME = 5
-UPPER_WAIT_TIME = 5
-DURATION = 10
+EXPERIMENT_NUM = 2
+PREP_TIME = 2
+UPPER_WAIT_TIME = 2
+DURATION = 4
 GAP_TIME = 2
-PWM_SIGNAL = 35000
+THRUST_COMMAND = 10001 #Thrust from 10001-60000
 RECENT_TIME = 1  # sec
 LOGRATE = 100  # Hz
 
@@ -126,6 +126,7 @@ def select_uri(func):
 def log_callback(timestamp, data, logconf):
     global log_vars
 
+    print("logging")
     with log_vars_lock:
         log_vars[logconf.name]["timestamp"].append(timestamp)
         for item in log_vars[logconf.name]["component"].keys():
@@ -142,6 +143,7 @@ def load_data(filepath):
 
 
 def plot_metrics(config, file="", start_time=0, duration=0, gap_time=0, iterations=1):
+
     global log_vars
     if not os.path.exists('metrics'):
         os.makedirs('metrics', exist_ok=True)
@@ -153,58 +155,64 @@ def plot_metrics(config, file="", start_time=0, duration=0, gap_time=0, iteratio
         filepath = os.path.join("metrics", config, file)
         log_vars = load_data(filepath)
 
-    end_time = start_time + duration * iterations + max(iterations-1, 0) * gap_time
+    end_time = start_time + duration * iterations + iterations * gap_time
 
     filename_pre_fix = f"{datetime.datetime.now():%Y_%m_%d_%H_%M}"
 
     save_time = start_time + duration
     ite = 0
 
-    with log_vars_lock:
-        while time.time() < end_time:
-            if time.time() < save_time:
-                continue
-            filename = f"{filename_pre_fix}{ite:.0f}"
-            save_time += gap_time + duration
-            ite += 1
+    while time.time() < end_time:
+        if time.time() < save_time:
+            continue
+        filename = f"{filename_pre_fix}{ite:.0f}"
+        save_time += gap_time + duration
+        ite += 1
 
-            sub_plot_num = 0
-            for name in log_vars.keys():
-                sub_plot_num += len(name.split("_"))
+            # sub_plot_num = 0
+            # for name in log_vars.keys():
+            #     sub_plot_num += len(name.split("_"))
 
-            fig, axes = plt.subplots(nrows=sub_plot_num, ncols=1, figsize=(12, 10))
+            # fig, axes = plt.subplots(nrows=sub_plot_num, ncols=1, figsize=(12, 10))
 
+            # with log_vars_lock:
+            #     ax_index = 0
+            #     for logs in log_vars.keys():
+            #         timeline = log_vars[logs]["timestamp"]
+            #         log_components = log_vars[logs]["component"]
+
+            #         if len(timeline) > 0:
+            #             time_axis = (np.array(timeline) - timeline[0]) / 1000
+
+            #             for component in log_components.keys():
+            #                 ax = axes[ax_index]
+            #                 log_component = log_components[component]
+
+            #                 for par in log_component["value"].keys():
+            #                     data = np.array(log_component["value"][par]["data"])
+            #                     ax.plot(time_axis, data, label=f"{par} ({log_component['value'][par]['unit']})")
+            #                 ax.set_xlabel('Time (s)')
+            #                 ax.legend(loc="upper left")
+            #                 ax.set_ylim(log_component["range"][0], log_component["range"][1])
+            #                 ax.set_title(component)
+            #                 ax_index += 1
+
+            # plt.tight_layout(h_pad=2)
+
+        if not file:
+            # plt.savefig(f'metrics/{config}/{filename}.png', dpi=300)
+            
             with log_vars_lock:
-                ax_index = 0
-                for logs in log_vars.keys():
-                    timeline = log_vars[logs]["timestamp"]
-                    log_components = log_vars[logs]["component"]
-
-                    if len(timeline) > 0:
-                        time_axis = (np.array(timeline) - timeline[0]) / 1000
-
-                        for component in log_components.keys():
-                            ax = axes[ax_index]
-                            log_component = log_components[component]
-
-                            for par in log_component["value"].keys():
-                                data = np.array(log_component["value"][par]["data"])
-                                ax.plot(time_axis, data, label=f"{par} ({log_component['value'][par]['unit']})")
-                            ax.set_xlabel('Time (s)')
-                            ax.legend(loc="upper left")
-                            ax.set_ylim(log_component["range"][0], log_component["range"][1])
-                            ax.set_title(component)
-                            ax_index += 1
-
-            plt.tight_layout(h_pad=2)
-
-            if not file:
-                plt.savefig(f'metrics/{config}/{filename}.png', dpi=300)
                 with open(f'metrics/{config}/{filename}.json', 'w') as f:
                     json.dump(log_vars, f, indent=4)
-            else:
-                image_name = "".join(file.split('.')[:-1])
-                plt.savefig(f'metrics/{config}/{image_name}.png', dpi=300)
+            print(f"SAVE LOG {filename}")
+        # else:
+        #     image_name = "".join(file.split('.')[:-1])
+        #     plt.savefig(f'metrics/{config}/{image_name}.png', dpi=300)
+
+
+        reset_log_vars()
+        # print("RESET log_vars")
 
 
 def plot_realtime(fps=50):
@@ -333,19 +341,25 @@ def async_flight(scf, start_time, iterations, stablize_time, wait_time, duration
     pitch = 0.0
     yawrate = 0
 
-    while time.time() < start_time + stablize_time:
-        scf.cf.commander.send_setpoint(0.0, 0.0, 0, pwm_signal)
+    if stablize_time > 0:
+        while time.time() < start_time + stablize_time:
+            # print(f"STABALIZE {scf.cf.link_uri}")
+            # scf.cf.commander.send_setpoint(0.0, 0.0, 0, pwm_signal)
+            pass
 
     start_time += stablize_time
 
     for i in range(iterations):
-        ite_start_time = start_time + duration * i
-        ite_end_time = time.time() + duration
+        ite_start_time = start_time + (duration + gap_time) * i
+        ite_end_time = ite_start_time + duration
 
         while time.time() < ite_end_time:
-            if time.time() < ite_start_time + wait_time + gap_time:
+            if time.time() < ite_start_time + wait_time:
                 continue
-            scf.cf.commander.send_setpoint(roll, pitch, yawrate, pwm_signal)
+            # print(f"Generate_THRUST {scf.cf.link_uri}")
+            # scf.cf.commander.send_setpoint(roll, pitch, yawrate, pwm_signal)
+
+        print(f"Iteration {i} finished")
 
     scf.cf.commander.send_stop_setpoint()
     scf.cf.commander.send_notify_setpoint_stop()
@@ -360,8 +374,8 @@ if __name__ == '__main__':
         realtime_plot_thread = None
 
     reset_log_vars()
-    restart([LOWERFLS_URI, UPPERFLS_URI])
-    time.sleep(5)
+    # restart([LOWERFLS_URI, UPPERFLS_URI])
+    # time.sleep(5)
 
     print("RESTART FINISHED")
     cflib.crtp.init_drivers()
@@ -379,21 +393,22 @@ if __name__ == '__main__':
 
         # start_time, iterations, prep_time, wait_time, duration, gap_time, pwm_signal
         args_dict = {
-            LOWERFLS_URI: [start_time, EXPERIMENT_NUM, PREP_TIME, 0, DURATION, GAP_TIME, PWM_SIGNAL],
-            UPPERFLS_URI: [start_time + PREP_TIME, EXPERIMENT_NUM, 0, UPPER_WAIT_TIME, DURATION, GAP_TIME, PWM_SIGNAL]
+            LOWERFLS_URI: [start_time, EXPERIMENT_NUM, PREP_TIME, 0, DURATION, GAP_TIME, THRUST_COMMAND],
+            UPPERFLS_URI: [start_time + PREP_TIME, EXPERIMENT_NUM, 0, UPPER_WAIT_TIME, DURATION, GAP_TIME, THRUST_COMMAND]
         }
 
         save_log_thread = threading.Thread(target=plot_metrics,
-                                           kwargs={'config': CONFIG, 'start_time': start_time, 'duration': DURATION,
+                                           kwargs={'config': CONFIG, 'start_time': start_time+PREP_TIME, 'duration': DURATION,
                                                    'gap_time': GAP_TIME, 'iterations': EXPERIMENT_NUM}, daemon=True)
-
+        save_log_thread.start()
         swarm.parallel_safe(async_flight, args_dict)
         stop_logger(LOGGERS)
         # time.sleep(1)
 
 
     # plot_metrics(config=CONFIG)
-    save_log_thread.join()
+    if save_log_thread and save_log_thread.is_alive():
+        save_log_thread.join()
 
     try:
         stop_plot(realtime_plot_thread)
