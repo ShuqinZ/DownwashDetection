@@ -24,7 +24,7 @@ import argparse
 
 EXPERIMENT_NUM = 10
 PREP_TIME = 5
-UPPER_WAIT_TIME = 25
+UPPER_WAIT_TIME = 5
 DURATION = 10
 GAP_TIME = 5
 THRUST_COMMAND = 35000  # Thrust from 10001-60000
@@ -33,7 +33,7 @@ LOGRATE = 100  # Hz
 REALTIME_PLOT_DURATION = 2  # sec
 REALTIME_PLOTTING = False
 
-CONFIG = f"x0_z8_{THRUST_COMMAND}"
+CONFIG = f"x0_z8_yaw0_{THRUST_COMMAND}"
 
 LOWERFLS_URI = 'radio://0/80/2M/E7E7E7E702'  # lower FLS
 UPPERFLS_URI = 'radio://0/80/2M/E7E7E7E704'  # upper FLS
@@ -350,6 +350,7 @@ def async_flight(scf, start_time, iterations, stablize_time, wait_time, duration
                 if wait_flag == False:
                     heart_beat_time = time.time() + 0.5
                     wait_flag = True
+                    scf.cf.commander.send_setpoint(0, 0, 0, 0)
                 
                 elif wait_flag and time.time() > heart_beat_time:
                         scf.cf.commander.send_setpoint(0, 0, 0, 0)
