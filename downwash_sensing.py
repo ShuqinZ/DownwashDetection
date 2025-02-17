@@ -20,21 +20,20 @@ from cflib.utils import uri_helper
 from cflib.utils.power_switch import PowerSwitch
 import numpy as np
 import argparse
-
 from util.data_analysis import *
 
-EXPERIMENT_NUM = 2
-PREP_TIME = 2
-UPPER_WAIT_TIME = 2
-DURATION = 4
-GAP_TIME = 2
-THRUST_COMMAND = 10001  # Thrust from 10001-60000
-RECENT_TIME = 1  # sec
+EXPERIMENT_NUM = 10
+PREP_TIME = 5
+UPPER_WAIT_TIME = 5
+DURATION = 10
+GAP_TIME = 5
+THRUST_COMMAND = 35000  # Thrust from 10001-60000
 LOGRATE = 100  # Hz
 
-PLOTTING = False
+REALTIME_PLOT_DURATION = 2  # sec
+REALTIME_PLOTTING = False
 
-CONFIG = "x0_z8"
+CONFIG = f"x0_z8_yaw0_{THRUST_COMMAND}"
 
 LOWERFLS_URI = 'radio://0/80/2M/E7E7E7E702'  # lower FLS
 UPPERFLS_URI = 'radio://0/80/2M/E7E7E7E704'  # upper FLS
@@ -97,7 +96,7 @@ def reset_log_vars():
                     },
 
                     "voltage": {
-                        "range": [0, 3700],
+                        "range": [3700, 4100],
                         "value": {
                             "pm.vbatMV": {"type": "uint16_t", "unit": "mV", "data": []},
                         }
@@ -167,9 +166,9 @@ def save_log(config, file_prefix, start_time=0, duration=0, gap_time=0, iteratio
 
 def plot_realtime(fps=50):
     """ Function to update real-time plots in a separate thread."""
-    global log_vars, PLOTTING, RECENT_TIME, LOGRATE
+    global log_vars, REALTIME_PLOTTING, REALTIME_PLOT_DURATION, LOGRATE
 
-    n = int(np.floor(RECENT_TIME * 1000 / LOGRATE))
+    n = int(np.floor(REALTIME_PLOT_DURATION * 1000 / LOGRATE))
     try:
         plt.ion()
 
@@ -179,7 +178,7 @@ def plot_realtime(fps=50):
 
         fig, axes = plt.subplots(nrows=sub_plot_num, ncols=1, figsize=(12, 10))
 
-        while PLOTTING:
+        while REALTIME_PLOTTING:
             with log_vars_lock:
                 for ax in axes:
                     ax.clear()
@@ -217,8 +216,8 @@ def plot_realtime(fps=50):
 
 
 def stop_plot(plot_thread):
-    global PLOTTING
-    PLOTTING = False
+    global REALTIME_PLOTTING
+    REALTIME_PLOTTING = False
     if plot_thread and plot_thread.is_alive():
         plot_thread.join()
 
@@ -302,10 +301,20 @@ def async_flight(scf, start_time, iterations, stablize_time, wait_time, duration
         ite_start_time = start_time + (duration + gap_time) * i
         ite_end_time = ite_start_time + duration
 
+        wait_flag = False
         while time.time() < ite_end_time:
-            if time.time() < ite_start_time + wait_time:
+            if wait_time > 0 and time.time() < ite_start_time + wait_time:
+                if wait_flag == False:
+                    heart_beat_time = time.time() + 0.5
+                    wait_flag = True
+                    scf.cf.commander.send_setpoint(0, 0, 0, 0)
+                
+                elif wait_flag and time.time() > heart_beat_time:
+                        scf.cf.commander.send_setpoint(0, 0, 0, 0)
+                        heart_beat_time += 0.5
+
                 continue
-            # print(f"Generate_THRUST {scf.cf.link_uri}")
+
             scf.cf.commander.send_setpoint(roll, pitch, yawrate, pwm_signal)
 
         print(f"Iteration {i} finished")
@@ -316,7 +325,7 @@ def async_flight(scf, start_time, iterations, stablize_time, wait_time, duration
 
 
 if __name__ == '__main__':
-    if PLOTTING:
+    if REALTIME_PLOTTING:
         realtime_plot_thread = threading.Thread(target=plot_realtime, daemon=True)
         realtime_plot_thread.start()
     else:
