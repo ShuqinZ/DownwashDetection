@@ -22,18 +22,18 @@ import numpy as np
 import argparse
 from util.data_analysis import *
 
-EXPERIMENT_NUM = 10
+EXPERIMENT_NUM = 1
 PREP_TIME = 5
 UPPER_WAIT_TIME = 5
 DURATION = 10
 GAP_TIME = 5
-THRUST_COMMAND = 35000  # Thrust from 10001-60000
+THRUST_COMMAND = 10001  # Thrust from 10001-60000
 LOGRATE = 100  # Hz
 
 REALTIME_PLOT_DURATION = 2  # sec
 REALTIME_PLOTTING = False
 
-CONFIG = f"x0_z12_yaw0_{THRUST_COMMAND}"
+CONFIG = f"test_{THRUST_COMMAND}"
 
 LOWERFLS_URI = 'radio://0/80/2M/E7E7E7E702'  # lower FLS
 UPPERFLS_URI = 'radio://0/80/2M/E7E7E7E704'  # upper FLS
@@ -368,7 +368,7 @@ if __name__ == '__main__':
         time.sleep(1)
 
     for i in range(EXPERIMENT_NUM):
-        plot_metrics(f"metrics/{CONFIG}/file_timestamp_{i}.json")
+        plot_metrics(f"metrics/{CONFIG}/{file_timestamp}_{i}.json")
 
     # plot_metrics(config=CONFIG)
     if save_log_thread and save_log_thread.is_alive():
