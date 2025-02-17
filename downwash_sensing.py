@@ -18,9 +18,10 @@ from cflib.crazyflie.swarm import Swarm
 from cflib.positioning.motion_commander import MotionCommander
 from cflib.utils import uri_helper
 from cflib.utils.power_switch import PowerSwitch
-import matplotlib.pyplot as plt
 import numpy as np
 import argparse
+
+from util.data_analysis import *
 
 EXPERIMENT_NUM = 2
 PREP_TIME = 2
@@ -134,49 +135,6 @@ def log_callback(timestamp, data, logconf):
             for par in log_component["value"].keys():
                 value = data[par]
                 log_component["value"][par]["data"].append(value)
-
-
-def load_data(filepath):
-    with open(filepath) as f:
-        json_data = json.load(f)
-    return json_data
-
-
-def plot_metrics(config, file):
-    filepath = os.path.join("metrics", config, file)
-    log_vars = load_data(filepath)
-
-    sub_plot_num = 0
-    for name in log_vars.keys():
-        sub_plot_num += len(name.split("_"))
-
-    fig, axes = plt.subplots(nrows=sub_plot_num, ncols=1, figsize=(12, 10))
-
-    ax_index = 0
-    for logs in log_vars.keys():
-        timeline = log_vars[logs]["timestamp"]
-        log_components = log_vars[logs]["component"]
-
-        if len(timeline) > 0:
-            time_axis = (np.array(timeline) - timeline[0]) / 1000
-
-            for component in log_components.keys():
-                ax = axes[ax_index]
-                log_component = log_components[component]
-
-                for par in log_component["value"].keys():
-                    data = np.array(log_component["value"][par]["data"])
-                    ax.plot(time_axis, data, label=f"{par} ({log_component['value'][par]['unit']})")
-                ax.set_xlabel('Time (s)')
-                ax.legend(loc="upper left")
-                ax.set_ylim(log_component["range"][0], log_component["range"][1])
-                ax.set_title(component)
-                ax_index += 1
-
-        plt.tight_layout(h_pad=2)
-
-    image_name = "".join(file.split('.')[:-1])
-    plt.savefig(f'metrics/{config}/{image_name}.png', dpi=300)
 
 
 def save_log(config, file_prefix, start_time=0, duration=0, gap_time=0, iterations=1):
@@ -401,7 +359,7 @@ if __name__ == '__main__':
         time.sleep(1)
 
     for i in range(EXPERIMENT_NUM):
-        plot_metrics(CONFIG, f"file_timestamp_{i}.json")
+        plot_metrics(f"metrics/{CONFIG}/file_timestamp_{i}.json")
 
     # plot_metrics(config=CONFIG)
     if save_log_thread and save_log_thread.is_alive():
