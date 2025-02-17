@@ -65,27 +65,27 @@ def plot_metrics(filepath):
     fig, axes = plt.subplots(nrows=sub_plot_num, ncols=1, figsize=(12, 10))
 
     ax_index = 0
-    for logs in log_vars.keys():
-        timeline = log_vars[logs]["timestamp"]
-        log_components = log_vars[logs]["component"]
 
-        if len(timeline) > 0:
-            time_axis = (np.array(timeline) - timeline[0]) / 1000
+    timeline = log_vars["timestamp"]
+    log_components = log_vars["component"]
 
-            for component in log_components.keys():
-                ax = axes[ax_index]
-                log_component = log_components[component]
+    if len(timeline) > 0:
+        time_axis = (np.array(timeline) - timeline[0]) / 1000
 
-                for par in log_component["value"].keys():
-                    data = np.array(log_component["value"][par]["data"])
-                    ax.plot(time_axis, data, label=f"{par} ({log_component['value'][par]['unit']})")
-                ax.set_xlabel('Time (s)')
-                ax.legend(loc="upper left")
-                ax.set_ylim(log_component["range"][0], log_component["range"][1])
-                ax.set_title(component)
-                ax_index += 1
+        for component in log_components.keys():
+            ax = axes[ax_index]
+            log_component = log_components[component]
 
-        plt.tight_layout(h_pad=2)
+            for par in log_component["value"].keys():
+                data = np.array(log_component["value"][par]["data"])
+                ax.plot(time_axis, data, label=f"{par} ({log_component['value'][par]['unit']})")
+            ax.set_xlabel('Time (s)')
+            ax.legend(loc="upper left")
+            ax.set_ylim(log_component["range"][0], log_component["range"][1])
+            ax.set_title(component)
+            ax_index += 1
+
+    plt.tight_layout(h_pad=2)
 
     image_name = "".join(filepath.split('.')[:-1])
     plt.savefig(f'{image_name}.png', dpi=300)
