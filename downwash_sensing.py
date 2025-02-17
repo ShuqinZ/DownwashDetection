@@ -33,7 +33,7 @@ LOGRATE = 100  # Hz
 REALTIME_PLOT_DURATION = 2  # sec
 REALTIME_PLOTTING = False
 
-CONFIG = f"x0_z8_yaw0_{THRUST_COMMAND}"
+CONFIG = f"x0_z12_yaw0_{THRUST_COMMAND}"
 
 LOWERFLS_URI = 'radio://0/80/2M/E7E7E7E702'  # lower FLS
 UPPERFLS_URI = 'radio://0/80/2M/E7E7E7E704'  # upper FLS
@@ -96,7 +96,7 @@ def reset_log_vars():
                     },
 
                     "voltage": {
-                        "range": [3700, 4100],
+                        "range": [3000, 4200],
                         "value": {
                             "pm.vbatMV": {"type": "uint16_t", "unit": "mV", "data": []},
                         }
