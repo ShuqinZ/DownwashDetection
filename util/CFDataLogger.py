@@ -10,13 +10,13 @@ from util import logger
 
 
 class CFDataLogger:
-    def __init__(self, config, duration, gap, timescale=1000):
+    def __init__(self, config, duration, gap, file_prefix, timescale=1000):
 
         self._config = config
         self._start_time = None
         self._duration = duration
         self._gap = gap
-        self._file_prefix = ""
+        self._file_prefix = file_prefix
         self._timescale = timescale
 
         self.log_vars = None
@@ -31,7 +31,6 @@ class CFDataLogger:
 
     def start_logging(self, start_time):
         self._start_time = start_time
-        self._file_prefix = datetime.datetime.fromtimestamp(start_time).strftime("%Y_%m_%d_%H_%M")
         self.log_thread.start()
 
     def _init_log_directory(self):

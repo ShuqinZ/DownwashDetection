@@ -104,13 +104,13 @@ def stationary_Flight(scf, start_time, iterations, prep_time, gap, wait_time, du
 
 
 class DownwashCommander:
-    def __init__(self, exp_config, logging_cfid=0, log_rate=100, debug=[0, 0]):
+    def __init__(self, exp_config, logging_cfid=0, log_rate=100, file_prefix="", debug=[0, 0]):
         self._exp_config = exp_config
         self._cf_loggers = []
         self._logging_cfid = logging_cfid
         self._log_rate = log_rate  # Hz
         self._start_time = None
-        self.logger = CFDataLogger(exp_config.CONFIG, exp_config.DURATION, exp_config.GAP)
+        self.logger = CFDataLogger(exp_config.CONFIG, exp_config.DURATION, exp_config.GAP, file_prefix)
         self._debug = debug
 
     def restart(self, cfid=None):
@@ -200,4 +200,3 @@ class DownwashCommander:
             swarm.parallel_safe(stationary_Flight, args_dict)
             time.sleep(2)
             self.stop_logger()
-        return self._start_time
