@@ -126,6 +126,9 @@ class DownwashCommander:
 
     def log_callback(self, uri, timestamp, data, logconf):
         if uri == self._exp_config.URI_LIST[self._logging_cfid]:
+            if self._start_time is None:
+                self._start_time = timestamp
+                self.logger.start_logging(timestamp)
             self.logger.log(timestamp, logconf.name, data)
 
     def init_cflogger(self, scf):
@@ -149,10 +152,9 @@ class DownwashCommander:
 
         self._cf_loggers.extend([logger])
 
-    def start_logger(self, start_time):
+    def start_logger(self):
         for logger in self._cf_loggers:
             logger.start()
-        self.logger.start_logging(start_time)
 
     def stop_logger(self):
         for logger in self._cf_loggers:
@@ -176,8 +178,11 @@ class DownwashCommander:
             swarm.parallel_safe(self.init_cflogger)
             time.sleep(0.1)
 
-            start_time = time.time()
-            self.start_logger(start_time)
+            self.start_logger()
+
+            while self._start_time is None:
+                time.sleep(0.01)
+                continue
 
             # start_time, iterations, prep_time, wait_time, duration, gap_time, pwm_signal
             args_dict = {

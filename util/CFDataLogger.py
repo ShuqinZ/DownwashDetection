@@ -8,12 +8,12 @@ from util import logger
 
 
 class CFDataLogger:
-    def __init__(self, config, duration, gap):
+    def __init__(self, config, duration, gap, timescale=1000):
 
         self._config = config
         self._start_time = None
-        self._duration = duration
-        self._gap = gap
+        self._duration = duration * timescale
+        self._gap = gap * timescale
         self._file_prefix = ""
 
         self.log_vars = None
@@ -57,10 +57,10 @@ class CFDataLogger:
 
                 # logger.debug(f"Timestamp: {timestamp}, Current Time: {time.time() - self._start_time:.2f} Start Time: {log_start_time- self._start_time}, Save Time: {save_time - self._start_time}")
 
-                if time.time() > log_start_time:
+                if timestamp > log_start_time:
 
                     # if it's time to save, skip logging it and
-                    if time.time() > save_time:
+                    if timestamp > save_time:
                         filename = self._file_prefix + f"_{iterations}"
                         self._save_log(filename)
                         logger.info(f"LOG SAVED for iteration: {iterations}")
