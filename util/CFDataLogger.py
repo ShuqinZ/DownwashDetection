@@ -63,11 +63,11 @@ class CFDataLogger:
                     if timestamp > save_time:
                         filename = self._file_prefix + f"_{iterations}"
                         self._save_log(filename)
-                        logger.info(f"LOG SAVED for iteration: {iterations}")
+                        # logger.info(f"LOG SAVED for iteration: {iterations}")
 
                         self.reset_log_vars()
 
-                        logger.debug(
+                        logger.info(
                             f"Time: {time.time() - self._start_time:.2f}, ITERATION: {iterations}, LOG Start Time: {log_start_time - self._start_time}, LOG Save Time: {save_time - self._start_time}")
                         
                         iterations += 1
