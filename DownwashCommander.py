@@ -12,7 +12,8 @@ from cflib.utils.power_switch import PowerSwitch
 from util.CFDataLogger import CFDataLogger
 from util import logger
 
-def stationary_Flight(scf, start_time, iterations, prep_time, gap, wait_time, duration, thrust, debug=[0, 1]):
+
+def stationary_Flight(scf, start_time, iterations, prep_time, gap, wait_time, duration, thrust, debug=0):
     scf.cf.commander.send_setpoint(0, 0, 0, 0)
 
     roll = 0.0
@@ -20,23 +21,26 @@ def stationary_Flight(scf, start_time, iterations, prep_time, gap, wait_time, du
     yawrate = 0
 
     command_change = True
+
+    iteration_start_time = start_time + prep_time
+
     if prep_time > 0:
-        while time.time() < start_time + prep_time:
+        while time.time() < iteration_start_time:
             if debug > 0:
                 if debug == 1:
-                    logger.debug("Send Command: Stabalize")
+                    logger.debug(
+                        f"ID: {scf.cf.link_uri[-2:]}, Send Command: Stabilize, Time: {time.time() - start_time:.2f}")
                 elif debug == 2 and command_change:
                     command_change = False
-                    logger.debug("Send Command: Stabalize")
+                    logger.debug(
+                        f"ID: {scf.cf.link_uri[-2:]}, Send Command: Stabilize, Time: {time.time() - start_time:.2f}")
                 # elif debug == 3:
                 continue
             else:
                 scf.cf.commander.send_setpoint(0.0, 0.0, 0, thrust)
 
-    start_time += prep_time
-
     for i in range(iterations):
-        ite_start_time = start_time + (duration + gap) * i
+        ite_start_time = iteration_start_time + (duration + gap) * i
         ite_end_time = ite_start_time + duration
 
         moving = True
@@ -55,11 +59,13 @@ def stationary_Flight(scf, start_time, iterations, prep_time, gap, wait_time, du
 
                 if time.time() >= heart_beat_time:
                     if debug > 0:
-                        if debug==1:
-                            logger.debug("Send Command: Wake")
+                        if debug == 1:
+                            logger.debug(
+                                f"ID: {scf.cf.link_uri[-2:]}, Send Command: Wake, Time: {time.time() - start_time:.2f}")
                         elif debug == 2 and command_change:
                             command_change = False
-                            logger.debug("Send Command: Wake")
+                            logger.debug(
+                                f"ID: {scf.cf.link_uri[-2:]}, Send Command: Wake, Time: {time.time() - start_time:.2f}")
                         # elif debug == 3:
                         continue
                     else:
@@ -73,14 +79,16 @@ def stationary_Flight(scf, start_time, iterations, prep_time, gap, wait_time, du
                     heart_beat_time = time.time()
                     moving = True
                     command_change = True
-                    
+
                 if time.time() >= heart_beat_time:
                     if debug > 0:
-                        if debug==1:
-                            logger.debug("Send Command: Move")
+                        if debug == 1:
+                            logger.debug(
+                                f"ID: {scf.cf.link_uri[-2:]}, Send Command: Move, Time: {time.time() - start_time:.2f}")
                         elif debug == 2 and command_change:
                             command_change = False
-                            logger.debug("Send Command: Move")
+                            logger.debug(
+                                f"ID: {scf.cf.link_uri[-2:]}, Send Command: Move, Time: {time.time() - start_time:.2f}")
                         # elif debug == 3:
                         continue
                     else:
@@ -173,7 +181,8 @@ class DownwashCommander:
 
             # start_time, iterations, prep_time, wait_time, duration, gap_time, pwm_signal
             args_dict = {
-                self._exp_config.URI_LIST[0]: [start_time, self._exp_config.ITERATIONS, self._exp_config.GAP, self._exp_config.GAP, 0,
+                self._exp_config.URI_LIST[0]: [start_time, self._exp_config.ITERATIONS, self._exp_config.GAP,
+                                               self._exp_config.GAP, 0,
                                                self._exp_config.DURATION, self._exp_config.THRUST, self._debug[0]],
                 self._exp_config.URI_LIST[1]: [start_time + self._exp_config.GAP, self._exp_config.ITERATIONS, 0, 0,
                                                self._exp_config.WAIT_TIME, self._exp_config.DURATION,
