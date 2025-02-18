@@ -24,7 +24,7 @@ def stationary_Flight(scf, start_time, iterations, prep_time, gap, wait_time, du
 
     iteration_start_time = start_time + prep_time
 
-    if prep_time > 0:
+    if prep_time > 0 and wait_time == 0:
         while time.time() < iteration_start_time:
             if debug > 0:
                 if debug == 1:
@@ -95,7 +95,8 @@ def stationary_Flight(scf, start_time, iterations, prep_time, gap, wait_time, du
                         scf.cf.commander.send_setpoint(roll, pitch, yawrate, thrust)
                     heart_beat_time += 0.5
 
-        logger.debug(f"Iteration {i} finished")
+        logger.debug(
+                    f"ID: {scf.cf.link_uri[-2:]}, Iteration {i} finished, Time: {time.time() - start_time:.2f}")
 
     scf.cf.commander.send_stop_setpoint()
     scf.cf.commander.send_notify_setpoint_stop()
@@ -179,14 +180,14 @@ class DownwashCommander:
             start_time = time.time()
             self.start_logger(start_time)
 
-            # start_time, iterations, prep_time, wait_time, duration, gap_time, pwm_signal
+            # start_time, iterations, prep_time, gap, wait_time, duration, thrust, debug=0
             args_dict = {
                 self._exp_config.URI_LIST[0]: [start_time, self._exp_config.ITERATIONS, self._exp_config.GAP,
                                                self._exp_config.GAP, 0,
                                                self._exp_config.DURATION, self._exp_config.THRUST, self._debug[0]],
-                self._exp_config.URI_LIST[1]: [start_time + self._exp_config.GAP, self._exp_config.ITERATIONS, 0, 0,
-                                               self._exp_config.WAIT_TIME, self._exp_config.DURATION,
-                                               self._exp_config.THRUST, self._debug[1]]
+                self._exp_config.URI_LIST[1]: [start_time, self._exp_config.ITERATIONS, self._exp_config.GAP, 
+                                               self._exp_config.GAP, self._exp_config.WAIT_TIME, 
+                                               self._exp_config.DURATION, self._exp_config.THRUST, self._debug[1]]
             }
 
             swarm.parallel_safe(stationary_Flight, args_dict)
