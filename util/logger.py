@@ -24,7 +24,7 @@ class CustomFormatter(logging.Formatter):
 
 
 logger = logging.getLogger('fls')
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 logger.disabled = False
 ch = logging.StreamHandler()
 

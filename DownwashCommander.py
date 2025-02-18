@@ -125,12 +125,12 @@ class DownwashCommander:
         with Swarm(self._exp_config.URI_LIST, factory=factory) as swarm:
             self.restart()
             time.sleep(5)
-            print("RESTART FINISHED")
+            logger.info("RESTART FINISHED")
 
             # swarm.reset_estimators()
             # time.sleep(1)
 
-            print("FLIGHT START")
+            logger.info("FLIGHT START")
             swarm.parallel_safe(self.init_cflogger)
             time.sleep(0.1)
 
