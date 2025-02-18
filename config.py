@@ -4,8 +4,8 @@ class Config:
     DURATION = 10
     GAP = 5
     WAIT_TIME = 5
-    THRUST = 5
+    THRUST = 10001
     DELTA_X = 0
     DELTA_Z = 8
     DELTA_YAW = 0
-    CONFIG = ""
+    CONFIG = f"x{DELTA_X}_z{DELTA_Z}_yaw{DELTA_YAW}_TH{THRUST}"

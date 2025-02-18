@@ -127,11 +127,11 @@ class DownwashCommander:
             time.sleep(5)
             print("RESTART FINISHED")
 
-            swarm.reset_estimators()
-            time.sleep(1)
+            # swarm.reset_estimators()
+            # time.sleep(1)
 
             print("FLIGHT START")
-            swarm.parallel_safe(self.start_logger)
+            swarm.parallel_safe(self.init_cflogger)
             time.sleep(0.1)
 
             start_time = time.time()

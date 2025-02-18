@@ -58,6 +58,7 @@ class CFLogger:
                         filename = self._file_prefix + f"_{iterations}"
                         self._save_log(filename)
                         self.reset_log_vars()
+                        print(f"LOG SAVED for iteration: {iterations}")
 
                         iterations += 1
                         save_time += self._gap + self._duration

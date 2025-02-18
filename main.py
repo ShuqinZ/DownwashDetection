@@ -2,10 +2,12 @@ import datetime
 
 from DownwashCommander import DownwashCommander
 from util.data_analysis import *
-import config as exp_config
+import config
 
 
 if __name__ == '__main__':
+
+    exp_config = config.Config
 
     cfm = DownwashCommander(exp_config, logging_cfid=0)
 
