@@ -48,14 +48,14 @@ def get_thrust(k_T, K_V, V):
     return thrust
 
 
-def compute_angular_accel_error(gyro_data, motor_voltage, dt, I_xyz, k_T, K_V, l, h):
+def compute_angular_accel_error(time_line, gyro_data, motor_voltage, I_xyz, k_T, K_V, l, h):
     """
     Compute the error between actual and predicted angular acceleration for roll, pitch, and yaw.
 
     Parameters:
+    - time_line (list): Time stamp in sec
     - gyro_data (dict): Gyroscope readings { 'roll': np.array, 'pitch': np.array, 'yaw': np.array } in rad.
     - motor_voltage (list or np.array): A list of tuples [(V1, V2, V3, V4), ...] with motor voltages per time step.
-    - dt (float): Time step between gyro readings in seconds.
     - I_x (float): Moment of inertia about the roll axis.
     - I_y (float): Moment of inertia about the pitch axis.
     - I_z (float): Moment of inertia about the yaw axis.
@@ -75,16 +75,17 @@ def compute_angular_accel_error(gyro_data, motor_voltage, dt, I_xyz, k_T, K_V, l
 
     for axis in range(3):
         # Compute actual angular acceleration (numerical derivative of gyro readings)
-        gyro_rate = np.diff(gyro_data[:, axis]) / dt  # Angular velocity
-        actual_accel[axis] = np.diff(gyro_rate.transpose()) / dt  # Angular acceleration
+        gyro_rate = np.diff(gyro_data[:, axis]) / np.diff(time_line)  # Angular velocity
+        actual_accel[axis] = np.diff(gyro_rate.transpose()) / np.diff(time_line[1:])   # Angular acceleration
 
         # Adjust length to match time steps
-        actual_accel[axis] = np.append(actual_accel[axis], actual_accel[axis][-1])  # Repeat last value
+        # actual_accel[axis] = np.append(actual_accel[axis], actual_accel[axis][-1])  # Repeat last value
 
-        # Initialize predicted acceleration storage
-        predicted_accel[axis] = []
+    time_line = time_line[1:]
 
     for i in range(len(actual_accel[0])):
+        dt = (time_line[i + 1] - time_line[i])
+
         # Compute thrust for all four motors
         T1, T2, T3, T4 = get_thrust(k_T, K_V, motor_voltage[i])
 
@@ -112,14 +113,14 @@ def compute_angular_accel_error(gyro_data, motor_voltage, dt, I_xyz, k_T, K_V, l
         predicted_accel[axis] = np.array(predicted_accel[axis])
 
     # Compute errors
-    error = [actual_accel[axis] - predicted_accel[axis] for axis in range(3)]
+    residue = [np.array(actual_accel[axis]) - np.array(predicted_accel[axis]) for axis in range(3)]
 
-    return actual_accel, predicted_accel, error
+    return actual_accel, predicted_accel, residue
 
 
 if __name__ == '__main__':
 
-    configs = ["x0_z8_yaw0_35000", "x0_z10_yaw0_35000", "x0_z12_yaw0_35000"]
+    configs = ["x0_z8_yaw0_TH35000"]
 
     project_root = Path(__file__).resolve().parent
 
@@ -130,43 +131,45 @@ if __name__ == '__main__':
         file_names = list_files(directory_name)
 
         for f in file_names:
+            if f.split('.')[-1] != "json":
+                continue
+
             filepath = os.path.join(directory_name, f)
             log_vars = load_data(filepath)
 
-            timeline_0 = log_vars["Gyro_Accel"]["timestamp"]
+            timeline_0 = np.array(log_vars["timestamp"])/1000
             gyro_data = [
                 [roll, pitch, yaw]
                 for roll, pitch, yaw in zip(
-                    log_vars["Gyro_Accel"]["component"]["Gyro"]["value"]["stateEstimate.roll"]["data"],
-                    log_vars["Gyro_Accel"]["component"]["Gyro"]["value"]["stateEstimate.pitch"]["data"],
-                    log_vars["Gyro_Accel"]["component"]["Gyro"]["value"]["stateEstimate.yaw"]["data"]
+                    log_vars["component"]["Gyro"]["value"]["stateEstimate.roll"]["data"],
+                    log_vars["component"]["Gyro"]["value"]["stateEstimate.pitch"]["data"],
+                    log_vars["component"]["Gyro"]["value"]["stateEstimate.yaw"]["data"]
                 )
             ]
 
-            timeline_1 = log_vars["Gyro_Accel"]["timestamp"]
-            motor_PWM = [
+            # timeline_1 = log_vars["Gyro_Accel"]["timestamp"]
+            motor_PWM = np.array([
                 [m1, m2, m3, m4]
                 for m1, m2, m3, m4 in zip(
-                    log_vars["Motor_Voltage"]["component"]["pwm"]["value"]["motor.m1"]["data"],
-                    log_vars["Motor_Voltage"]["component"]["pwm"]["value"]["motor.m2"]["data"],
-                    log_vars["Motor_Voltage"]["component"]["pwm"]["value"]["motor.m3"]["data"],
-                    log_vars["Motor_Voltage"]["component"]["pwm"]["value"]["motor.m4"]["data"]
+                    log_vars["component"]["Motor"]["value"]["motor.m1"]["data"],
+                    log_vars["component"]["Motor"]["value"]["motor.m2"]["data"],
+                    log_vars["component"]["Motor"]["value"]["motor.m3"]["data"],
+                    log_vars["component"]["Motor"]["value"]["motor.m4"]["data"]
                 )
-            ]
+            ])
 
-            battery_voltage = log_vars["Motor_Voltage"]["component"]["voltage"]["value"]["pm.vbatMV"]["data"]
+            battery_voltage = np.array(log_vars["component"]["Battery"]["value"]["pm.vbatMV"]["data"])
 
-            index_0, index_1 = match_timeline(timeline_0, timeline_1)
+            # index_0, index_1 = match_timeline(timeline_0, timeline_1)
+            #
+            # motor_PWM = data_time_alignment(motor_PWM[index_1:], timeline_1[index_1] - timeline_0[index_0])
+            # battery_voltage = data_time_alignment(battery_voltage[index_1:], timeline_1[index_1] - timeline_0[index_0])
 
-            motor_PWM = data_time_alignment(motor_PWM[index_1:], timeline_1[index_1] - timeline_0[index_0])
-            battery_voltage = data_time_alignment(battery_voltage[index_1:], timeline_1[index_1] - timeline_0[index_0])
-
-            gyro_data = np.array(gyro_data[index_0:])
+            gyro_data = np.array(gyro_data)
 
 
-            motor_voltage = np.array([b * np.array(pwm) for b, pwm in zip(battery_voltage, motor_PWM/65535)])
+            motor_voltage = np.array([b * np.array(pwm) for b, pwm in zip(battery_voltage/1000, motor_PWM/65535)])
 
-            dt = 0.01  # 10ms timestep
             I_xyz = [0.000023951, 0.000023951, 0.000032347]  # moment of inertia, kg/m^2
             l = (0.092 / 2) * np.sqrt(2)  # arm length
             h = -0.02  # -1 cm center of mass height
@@ -177,12 +180,15 @@ if __name__ == '__main__':
 
             k_T = calculate_k_T(C_T, rho, propeller_diameter)
 
-            actual_accel, predicted_accel, error = compute_angular_accel_error(gyro_data, motor_voltage, dt,
+            actual_accel, predicted_accel, error = compute_angular_accel_error(timeline_0, gyro_data, motor_voltage,
                                                                                I_xyz, k_T, K_V, l, h)
 
-            img_name = "".join(f.split('.')[:-1]) + "_error.png"
-            plot_general(img_name, timeline_0, error, y_names=None, x_label="Time(s)", y_label="")
+            img_name = os.path.join(directory_name, "".join(f.split('.')[:-1]) + "_error")
+
+            time_line = (np.array(timeline_0[2:]) - timeline_0[2])
+            plot_general(img_name, time_line, error, line_names=["Roll", "Pitch", "Yaw"], x_label="Time(s)",
+                         y_label="Angular Acc Residual (deg/s)")
             # Print the results
-            print("Actual Angular Acceleration:", actual_accel)
-            print("Predicted Angular Acceleration:", predicted_accel)
-            print("Error:", error)
+            # print("Actual Angular Acceleration:", actual_accel)
+            # print("Predicted Angular Acceleration:", predicted_accel)
+            # print("Error:", error)
