@@ -9,8 +9,8 @@ from cflib.crazyflie.swarm import Swarm
 from cflib.positioning.motion_commander import MotionCommander
 from cflib.utils import uri_helper
 from cflib.utils.power_switch import PowerSwitch
-from util.logger import CFLogger
-
+from util.CFLogger import CFLogger
+from util import logger
 
 def stationary_Flight(scf, start_time, iterations, gap, wait_time, duration, thrust):
     scf.cf.commander.send_setpoint(0, 0, 0, 0)
@@ -54,7 +54,7 @@ def stationary_Flight(scf, start_time, iterations, gap, wait_time, duration, thr
                     scf.cf.commander.send_setpoint(roll, pitch, yawrate, thrust)
                     heart_beat_time += 0.5
 
-        print(f"Iteration {i} finished")
+        logger.debug(f"Iteration {i} finished")
 
     scf.cf.commander.send_stop_setpoint()
     scf.cf.commander.send_notify_setpoint_stop()
@@ -149,4 +149,5 @@ class DownwashCommander:
             swarm.parallel_safe(stationary_Flight, args_dict)
             self.stop_logger()
             time.sleep(1)
-        return start_time
+        return (
+            start_time)
