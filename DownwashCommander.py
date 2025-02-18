@@ -12,18 +12,18 @@ from cflib.utils.power_switch import PowerSwitch
 from util.CFLogger import CFLogger
 from util import logger
 
-def stationary_Flight(scf, start_time, iterations, gap, wait_time, duration, thrust):
+def stationary_Flight(scf, start_time, iterations, prep_time, gap, wait_time, duration, thrust):
     scf.cf.commander.send_setpoint(0, 0, 0, 0)
 
     roll = 0.0
     pitch = 0.0
     yawrate = 0
 
-    if gap > 0:
-        while time.time() < start_time + gap:
+    if prep_time > 0:
+        while time.time() < start_time + prep_time:
             scf.cf.commander.send_setpoint(0.0, 0.0, 0, thrust)
 
-    start_time += gap
+    start_time += prep_time
 
     for i in range(iterations):
         ite_start_time = start_time + (duration + gap) * i
@@ -121,14 +121,14 @@ class DownwashCommander:
     def stationary_downwash(self):
         cflib.crtp.init_drivers()
 
+        self.restart()
+        time.sleep(5)
         factory = CachedCfFactory(rw_cache='./cache')
         with Swarm(self._exp_config.URI_LIST, factory=factory) as swarm:
-            self.restart()
-            time.sleep(5)
             logger.info("RESTART FINISHED")
 
-            # swarm.reset_estimators()
-            # time.sleep(1)
+            swarm.reset_estimators()
+            time.sleep(1)
 
             logger.info("FLIGHT START")
             swarm.parallel_safe(self.init_cflogger)
@@ -139,15 +139,16 @@ class DownwashCommander:
 
             # start_time, iterations, prep_time, wait_time, duration, gap_time, pwm_signal
             args_dict = {
-                self._exp_config.URI_LIST[0]: [start_time, self._exp_config.ITERATIONS, self._exp_config.GAP, 0,
+                self._exp_config.URI_LIST[0]: [start_time, self._exp_config.ITERATIONS, self._exp_config.GAP, self._exp_config.GAP, 0,
                                                self._exp_config.DURATION, self._exp_config.THRUST],
-                self._exp_config.URI_LIST[1]: [start_time + self._exp_config.GAP, self._exp_config.ITERATIONS, 0,
+                self._exp_config.URI_LIST[1]: [start_time + self._exp_config.GAP, self._exp_config.ITERATIONS, 0, 0,
                                                self._exp_config.WAIT_TIME, self._exp_config.DURATION,
                                                self._exp_config.THRUST]
             }
 
             swarm.parallel_safe(stationary_Flight, args_dict)
-            self.stop_logger()
             time.sleep(1)
+
+            self.stop_logger()
         return (
             start_time)

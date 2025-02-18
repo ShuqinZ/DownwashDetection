@@ -48,22 +48,26 @@ class CFLogger:
 
         while self.running or not self.log_queue.empty():
             try:
-                log_item = self.log_queue.get(timeout=0.1)  # Waits for a log entry
+                log_item = self.log_queue.get(timeout=0.01)  # Waits for a log entry
 
                 timestamp, name, data = log_item
 
-                if timestamp > log_start_time:
+
+                logger.debug(f"Timestamp: {timestamp}, Start Time: {log_start_time}, Save Time: {save_time}")
+
+                if time.time() > log_start_time:
 
                     # if it's time to save, skip logging it and
-                    if timestamp > save_time:
+                    if time.time() > save_time:
                         filename = self._file_prefix + f"_{iterations}"
                         self._save_log(filename)
+                        logger.info(f"LOG SAVED for iteration: {iterations}")
+
                         self.reset_log_vars()
-                        logger.debug(f"LOG SAVED for iteration: {iterations}")
 
                         iterations += 1
                         save_time += self._gap + self._duration
-                        log_start_time += self._gap + self._duration
+                        log_start_time += self._gap
                         continue
 
                     self.log_vars["timestamp"].append(timestamp)
@@ -85,7 +89,8 @@ class CFLogger:
 
 
     def log(self, timestamp, name, data):
-        self.log_queue.put((timestamp, name,data))
+        logger.debug("LOG IN QUEUE")
+        self.log_queue.put((timestamp, name, data))
 
     def stop(self):
         """ Stops the logger thread gracefully """
