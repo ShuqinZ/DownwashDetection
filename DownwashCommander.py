@@ -9,7 +9,7 @@ from cflib.crazyflie.swarm import Swarm
 from cflib.positioning.motion_commander import MotionCommander
 from cflib.utils import uri_helper
 from cflib.utils.power_switch import PowerSwitch
-from util.CFLogger import CFLogger
+from util.CFDataLogger import CFDataLogger
 from util import logger
 
 def stationary_Flight(scf, start_time, iterations, gap, wait_time, duration, thrust):
@@ -68,7 +68,7 @@ class DownwashCommander:
         self._logging_cfid = logging_cfid
         self._log_rate = log_rate  # Hz
         self._start_time = None
-        self.logger = CFLogger(exp_config.CONFIG, exp_config.DURATION, exp_config.DURATION)
+        self.logger = CFDataLogger(exp_config.CONFIG, exp_config.DURATION, exp_config.DURATION)
 
     def restart(self, cfid=None):
         if cfid is None:
@@ -147,7 +147,6 @@ class DownwashCommander:
             }
 
             swarm.parallel_safe(stationary_Flight, args_dict)
+            time.sleep(self._exp_config.GAP)
             self.stop_logger()
-            time.sleep(1)
-        return (
-            start_time)
+        return start_time

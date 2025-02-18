@@ -91,16 +91,16 @@ def plot_metrics(filepath):
     plt.savefig(f'{image_name}.png', dpi=300)
 
 
-def plot_general(filename, x_data, y_datas, y_names=None, x_label="Time(s)", y_label="", x_lim=None, y_lim=None):
-    if y_names is None:
-        y_names = ["" for _ in y_datas]
+def plot_general(filename, x_data, y_datas, line_names=None, x_label="Time(s)", y_label="", x_lim=None, y_lim=None):
+    if line_names is None:
+        line_names = ["" for _ in y_datas]
 
     fig, ax = plt.subplots(figsize=(8, 6))
-    for y_data, y_name in zip(y_datas, y_names):
+    for y_data, y_name in zip(y_datas, line_names):
         ax.plot(x_data, y_data, label=y_name)
 
     ax.set_xlabel(x_label)
-    # ax.legend(loc="upper left")
+    ax.legend(loc="upper left")
     ax.set_title(y_label)
 
     if x_lim is not None:

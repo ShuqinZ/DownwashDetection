@@ -7,7 +7,7 @@ import datetime
 from util import logger
 
 
-class CFLogger:
+class CFDataLogger:
     def __init__(self, config, duration, gap):
 
         self._config = config
@@ -46,6 +46,8 @@ class CFLogger:
         log_start_time = self._start_time + self._gap
         save_time = self._start_time + self._gap + self._duration
 
+        logger.debug(f"LOG Start Time: {log_start_time-self._start_time}, LOG Save Time: {save_time - self._start_time}")
+
         while self.running or not self.log_queue.empty():
             try:
                 log_item = self.log_queue.get(timeout=0.1)  # Waits for a log entry
@@ -64,6 +66,9 @@ class CFLogger:
                         iterations += 1
                         save_time += self._gap + self._duration
                         log_start_time += self._gap + self._duration
+
+                        logger.debug(
+                            f"LOG Start Time: {log_start_time - self._start_time}, LOG Save Time: {save_time - self._start_time}")
                         continue
 
                     self.log_vars["timestamp"].append(timestamp)
