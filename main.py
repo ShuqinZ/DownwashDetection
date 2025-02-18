@@ -9,7 +9,7 @@ if __name__ == '__main__':
 
     exp_config = config.Config
 
-    cfm = DownwashCommander(exp_config, logging_cfid=0)
+    cfm = DownwashCommander(exp_config, logging_cfid=0, debug=exp_config.DEBUG)
 
     start_time = cfm.stationary_downwash()
 

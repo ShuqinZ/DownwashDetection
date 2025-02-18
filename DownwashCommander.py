@@ -12,16 +12,26 @@ from cflib.utils.power_switch import PowerSwitch
 from util.CFDataLogger import CFDataLogger
 from util import logger
 
-def stationary_Flight(scf, start_time, iterations, prep_time, gap, wait_time, duration, thrust):
+def stationary_Flight(scf, start_time, iterations, prep_time, gap, wait_time, duration, thrust, debug=[0, 1]):
     scf.cf.commander.send_setpoint(0, 0, 0, 0)
 
     roll = 0.0
     pitch = 0.0
     yawrate = 0
 
+    command_change = True
     if prep_time > 0:
         while time.time() < start_time + prep_time:
-            scf.cf.commander.send_setpoint(0.0, 0.0, 0, thrust)
+            if debug > 0:
+                if debug == 1:
+                    logger.debug("Send Command: Stabalize")
+                elif debug == 2 and command_change:
+                    command_change = False
+                    logger.debug("Send Command: Stabalize")
+                # elif debug == 3:
+                continue
+            else:
+                scf.cf.commander.send_setpoint(0.0, 0.0, 0, thrust)
 
     start_time += prep_time
 
@@ -30,6 +40,8 @@ def stationary_Flight(scf, start_time, iterations, prep_time, gap, wait_time, du
         ite_end_time = ite_start_time + duration
 
         moving = True
+        command_change = True
+
         heart_beat_time = time.time()
 
         while time.time() < ite_end_time:
@@ -39,9 +51,19 @@ def stationary_Flight(scf, start_time, iterations, prep_time, gap, wait_time, du
                 if moving:
                     heart_beat_time = time.time()
                     moving = False
+                    command_change = True
 
                 if time.time() >= heart_beat_time:
-                    scf.cf.commander.send_setpoint(0, 0, 0, 0)
+                    if debug > 0:
+                        if debug==1:
+                            logger.debug("Send Command: Wake")
+                        elif debug == 2 and command_change:
+                            command_change = False
+                            logger.debug("Send Command: Wake")
+                        # elif debug == 3:
+                        continue
+                    else:
+                        scf.cf.commander.send_setpoint(0, 0, 0, 0)
                     heart_beat_time += 0.5
                 continue
 
@@ -50,8 +72,19 @@ def stationary_Flight(scf, start_time, iterations, prep_time, gap, wait_time, du
                 if not moving:
                     heart_beat_time = time.time()
                     moving = True
+                    command_change = True
+                    
                 if time.time() >= heart_beat_time:
-                    scf.cf.commander.send_setpoint(roll, pitch, yawrate, thrust)
+                    if debug > 0:
+                        if debug==1:
+                            logger.debug("Send Command: Move")
+                        elif debug == 2 and command_change:
+                            command_change = False
+                            logger.debug("Send Command: Move")
+                        # elif debug == 3:
+                        continue
+                    else:
+                        scf.cf.commander.send_setpoint(roll, pitch, yawrate, thrust)
                     heart_beat_time += 0.5
 
         logger.debug(f"Iteration {i} finished")
@@ -62,13 +95,14 @@ def stationary_Flight(scf, start_time, iterations, prep_time, gap, wait_time, du
 
 
 class DownwashCommander:
-    def __init__(self, exp_config, logging_cfid=0, log_rate=100):
+    def __init__(self, exp_config, logging_cfid=0, log_rate=100, debug=[0, 0]):
         self._exp_config = exp_config
         self._cf_loggers = []
         self._logging_cfid = logging_cfid
         self._log_rate = log_rate  # Hz
         self._start_time = None
         self.logger = CFDataLogger(exp_config.CONFIG, exp_config.DURATION, exp_config.GAP)
+        self._debug = debug
 
     def restart(self, cfid=None):
         if cfid is None:
@@ -140,10 +174,10 @@ class DownwashCommander:
             # start_time, iterations, prep_time, wait_time, duration, gap_time, pwm_signal
             args_dict = {
                 self._exp_config.URI_LIST[0]: [start_time, self._exp_config.ITERATIONS, self._exp_config.GAP, self._exp_config.GAP, 0,
-                                               self._exp_config.DURATION, self._exp_config.THRUST],
+                                               self._exp_config.DURATION, self._exp_config.THRUST, self._debug[0]],
                 self._exp_config.URI_LIST[1]: [start_time + self._exp_config.GAP, self._exp_config.ITERATIONS, 0, 0,
                                                self._exp_config.WAIT_TIME, self._exp_config.DURATION,
-                                               self._exp_config.THRUST]
+                                               self._exp_config.THRUST, self._debug[1]]
             }
 
             swarm.parallel_safe(stationary_Flight, args_dict)
