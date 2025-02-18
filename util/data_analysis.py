@@ -55,19 +55,15 @@ def match_timeline(timeline_0, timeline_1, log_gap=10, time_offset=0):
     return -1, -1
 
 
-def plot_metrics(filepath):
+def plot_metrics(filepath, ):
     log_vars = load_data(filepath)
-
-    sub_plot_num = 0
-    for name in log_vars.keys():
-        sub_plot_num += len(name.split("_"))
-
-    fig, axes = plt.subplots(nrows=sub_plot_num, ncols=1, figsize=(12, 10))
-
-    ax_index = 0
 
     timeline = log_vars["timestamp"]
     log_components = log_vars["component"]
+
+    fig, axes = plt.subplots(nrows=len(log_components.keys()), ncols=1, figsize=(12, 10))
+
+    ax_index = 0
 
     if len(timeline) > 0:
         time_axis = (np.array(timeline) - timeline[0]) / 1000

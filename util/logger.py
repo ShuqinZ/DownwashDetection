@@ -23,8 +23,8 @@ class CustomFormatter(logging.Formatter):
         return formatter.format(record)
 
 
-logger = logging.getLogger('fls')
-logger.setLevel(logging.INFO)
+logger = logging.getLogger('cf')
+logger.setLevel(logging.DEBUG)
 logger.disabled = False
 ch = logging.StreamHandler()
 

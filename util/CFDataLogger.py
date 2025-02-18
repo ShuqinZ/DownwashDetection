@@ -46,7 +46,7 @@ class CFDataLogger:
         log_start_time = self._start_time + self._gap
         save_time = self._start_time + self._gap + self._duration
 
-        logger.debug(f"LOG Start Time: {log_start_time-self._start_time}, LOG Save Time: {save_time - self._start_time}")
+        # logger.debug(f"LOG Start Time: {log_start_time-self._start_time}, LOG Save Time: {save_time - self._start_time}")
 
         while self.running or not self.log_queue.empty():
             try:
@@ -55,7 +55,7 @@ class CFDataLogger:
                 timestamp, name, data = log_item
 
 
-                logger.debug(f"Timestamp: {timestamp}, Start Time: {log_start_time}, Save Time: {save_time}")
+                logger.debug(f"Timestamp: {timestamp}, Current Time: {time.time() - self._start_time} Start Time: {log_start_time- self._start_time}, Save Time: {save_time - self._start_time}")
 
                 if time.time() > log_start_time:
 
@@ -69,10 +69,10 @@ class CFDataLogger:
 
                         iterations += 1
                         save_time += self._gap + self._duration
-                        log_start_time += self._gap
+                        log_start_time += self._gap + self._duration
 
-                        logger.debug(
-                            f"LOG Start Time: {log_start_time - self._start_time}, LOG Save Time: {save_time - self._start_time}")
+                        # logger.debug(
+                        #     f"LOG Start Time: {log_start_time - self._start_time}, LOG Save Time: {save_time - self._start_time}")
                         continue
 
                     self.log_vars["timestamp"].append(timestamp)

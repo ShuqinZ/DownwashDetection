@@ -68,7 +68,7 @@ class DownwashCommander:
         self._logging_cfid = logging_cfid
         self._log_rate = log_rate  # Hz
         self._start_time = None
-        self.logger = CFDataLogger(exp_config.CONFIG, exp_config.DURATION, exp_config.DURATION)
+        self.logger = CFDataLogger(exp_config.CONFIG, exp_config.DURATION, exp_config.GAP)
 
     def restart(self, cfid=None):
         if cfid is None:
@@ -147,6 +147,6 @@ class DownwashCommander:
             }
 
             swarm.parallel_safe(stationary_Flight, args_dict)
-            time.sleep(self._exp_config.GAP)
+            time.sleep(2)
             self.stop_logger()
         return start_time
