@@ -187,6 +187,8 @@ class DownwashCommander:
                 time.sleep(0.01)
                 continue
 
+            logger.info("Settle Start Time")
+
             # start_time, iterations, prep_time, gap, wait_time, duration, thrust, debug=0
             args_dict = {
                 self._exp_config.URI_LIST[0]: [self._start_time, self._exp_config.ITERATIONS, self._exp_config.GAP,
