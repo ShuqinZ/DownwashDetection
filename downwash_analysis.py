@@ -1,4 +1,4 @@
-from util.data_analysis import *
+from util.data_process import *
 
 
 def calculate_k_T(C_T, rho, propeller_diameter):

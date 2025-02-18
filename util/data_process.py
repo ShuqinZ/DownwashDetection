@@ -75,6 +75,9 @@ def plot_metrics(filepath, ):
             for par in log_component["value"].keys():
                 data = np.array(log_component["value"][par]["data"])
                 ax.plot(time_axis, data, label=f"{par} ({log_component['value'][par]['unit']})")
+
+                if par == "Battery":
+                    ax.axhline(y=3400, color='r', alpha=0.5, linestyle='--',  linewidth=2, label='Voltage Baseline')
             ax.set_xlabel('Time (s)')
             ax.legend(loc="upper left")
             ax.set_ylim(log_component["range"][0], log_component["range"][1])
