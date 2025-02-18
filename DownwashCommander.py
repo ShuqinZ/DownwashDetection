@@ -128,9 +128,9 @@ class DownwashCommander:
     def log_callback(self, uri, timestamp, data, logconf):
         if uri == self._exp_config.URI_LIST[self._logging_cfid]:
             if self._start_time is None:
-                start_time = timestamp/1000
-                self._start_time = start_time
-                self.logger.start_logging(self._start_time)
+                start_timestamp = timestamp/1000
+                self._start_time = time.time()
+                self.logger.start_logging(start_timestamp)
 
             self.logger.log(timestamp, logconf.name, data)
 
@@ -184,7 +184,6 @@ class DownwashCommander:
             self.start_logger()
 
             while self._start_time is None:
-                time.sleep(0.01)
                 continue
 
             logger.info("Settle Start Time")
