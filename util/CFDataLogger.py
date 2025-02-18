@@ -4,6 +4,8 @@ import threading
 import queue
 import time
 import datetime
+import numpy as np
+
 from util import logger
 
 
@@ -12,9 +14,10 @@ class CFDataLogger:
 
         self._config = config
         self._start_time = None
-        self._duration = duration * timescale
-        self._gap = gap * timescale
+        self._duration = duration
+        self._gap = gap
         self._file_prefix = ""
+        self._timescale = timescale
 
         self.log_vars = None
         self.reset_log_vars()
@@ -54,8 +57,10 @@ class CFDataLogger:
 
                 timestamp, name, data = log_item
 
+                timestamp = int(np.round(timestamp/self._timescale))
 
-                # logger.debug(f"Timestamp: {timestamp}, Current Time: {time.time() - self._start_time:.2f} Start Time: {log_start_time- self._start_time}, Save Time: {save_time - self._start_time}")
+                # logger.debug(f"Time: {timestamp - self._start_time:.2f} Start Time: {log_start_time-
+                # self._start_time}, Save Time: {save_time - self._start_time}")
 
                 if timestamp > log_start_time:
 
@@ -68,7 +73,7 @@ class CFDataLogger:
                         self.reset_log_vars()
 
                         logger.info(
-                            f"Time: {time.time() - self._start_time:.2f}, ITERATION: {iterations}, LOG Start Time: {log_start_time - self._start_time}, LOG Save Time: {save_time - self._start_time}")
+                            f"Time: {timestamp - self._start_time:.2f}, ITERATION: {iterations}, LOG Start Time: {log_start_time - self._start_time}, LOG Save Time: {save_time - self._start_time}")
                         
                         iterations += 1
                         save_time += self._gap + self._duration

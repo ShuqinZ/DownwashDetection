@@ -137,7 +137,7 @@ if __name__ == '__main__':
             filepath = os.path.join(directory_name, f)
             log_vars = load_data(filepath)
 
-            timeline_0 = np.array(log_vars["timestamp"])/1000
+            timeline_0 = np.array(log_vars["timestamp"])
             gyro_data = [
                 [roll, pitch, yaw]
                 for roll, pitch, yaw in zip(

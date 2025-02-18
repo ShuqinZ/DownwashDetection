@@ -128,8 +128,10 @@ class DownwashCommander:
     def log_callback(self, uri, timestamp, data, logconf):
         if uri == self._exp_config.URI_LIST[self._logging_cfid]:
             if self._start_time is None:
-                self._start_time = timestamp
-                self.logger.start_logging(timestamp)
+                start_time = timestamp/1000
+                self._start_time = start_time
+                self.logger.start_logging(self._start_time)
+
             self.logger.log(timestamp, logconf.name, data)
 
     def init_cflogger(self, scf):
@@ -187,10 +189,10 @@ class DownwashCommander:
 
             # start_time, iterations, prep_time, gap, wait_time, duration, thrust, debug=0
             args_dict = {
-                self._exp_config.URI_LIST[0]: [start_time, self._exp_config.ITERATIONS, self._exp_config.GAP,
+                self._exp_config.URI_LIST[0]: [self._start_time, self._exp_config.ITERATIONS, self._exp_config.GAP,
                                                self._exp_config.GAP, 0,
                                                self._exp_config.DURATION, self._exp_config.THRUST, self._debug[0]],
-                self._exp_config.URI_LIST[1]: [start_time, self._exp_config.ITERATIONS, self._exp_config.GAP, 
+                self._exp_config.URI_LIST[1]: [self._start_time, self._exp_config.ITERATIONS, self._exp_config.GAP,
                                                self._exp_config.GAP, self._exp_config.WAIT_TIME, 
                                                self._exp_config.DURATION, self._exp_config.THRUST, self._debug[1]]
             }
@@ -198,4 +200,4 @@ class DownwashCommander:
             swarm.parallel_safe(stationary_Flight, args_dict)
             time.sleep(2)
             self.stop_logger()
-        return start_time
+        return self._start_time
