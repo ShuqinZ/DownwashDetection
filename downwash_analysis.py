@@ -64,6 +64,22 @@ def compute_angular_accel_error(time_line, gyro_data, motor_voltage, I_xyz, k_T,
     - l (float): Arm length from center to motor.
     - h (float): Center of mass height above thrust plane.
 
+    '''
+                ↑ (Front)
+                T4 (CW)   T1 (CCW)
+                ⬤-----------⬤
+      Roll - <--   |       |    --> Roll+
+                   |       |
+                ⬤-----------⬤
+                T3 (CCW)   T2 (CW)
+                ↓ (Back)
+
+                Pitch -: Head Down
+                Pitch +: Head up
+                Yaw-: clockwise
+                Yaw+: counter-cloclwise
+        '''
+
     Returns:
     - actual_accel (dict): Numerically computed angular acceleration for roll, pitch, and yaw.
     - predicted_accel (dict): Computed from the mathematical model.
@@ -96,14 +112,11 @@ def compute_angular_accel_error(time_line, gyro_data, motor_voltage, I_xyz, k_T,
         phi = gyro_data[i, 1] * dt
         # psi = gyro_data[2][i] * dt
 
-        # Roll equation: ddot(phi) = (l * (T2 - T4) * cos(phi)) / I_x
-        predicted_ddot_roll = (l * (T2 - T4) * np.cos(phi)) / I_x
+        predicted_ddot_roll = (l * (T1 - T2) * np.cos(phi) + h * (T1 + T2 + T3 + T4) * np.sin(phi)) / I_x
 
-        # Pitch equation: ddot(theta) = (l * (T1 - T3) * cos(theta) + h * (T1 + T2 + T3 + T4) * sin(theta)) / I_y
-        predicted_ddot_pitch = (l * (T1 - T3) * np.cos(theta) + h * (T1 + T2 + T3 + T4) * np.sin(theta)) / I_y
+        predicted_ddot_pitch = (l * (T4 - T3) * np.cos(theta) + h * (T1 + T2 + T3 + T4) * np.sin(theta)) / I_y
 
-        # Yaw equation: ddot(psi) = (torque from motor differentials) / I_z
-        predicted_ddot_yaw = (l * ((T1 + T3) - (T2 + T4))) / I_z
+        predicted_ddot_yaw = (l * ((T4 + T3) - (T1 + T2))) / I_z
 
         # Store computed values
         predicted_accel[0].append(predicted_ddot_roll)
@@ -122,7 +135,7 @@ def compute_angular_accel_error(time_line, gyro_data, motor_voltage, I_xyz, k_T,
 
 if __name__ == '__main__':
 
-    configs = ["x0_z24_yaw0_TH35000"]
+    configs = ["x0_z24_yaw0_TH35000", "x0_z24_yaw0_TH35000_R5_P0_YR0", "x0_z24_yaw0_TH35000_R5_P5_YR0"]
 
     project_root = Path(__file__).resolve().parent
 
