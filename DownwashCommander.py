@@ -47,6 +47,16 @@ class DownwashCommander:
 
             self.logger.log(timestamp, logconf.name, data)
 
+    def logging_error(self, logconf, msg):
+        logger.debug(f"Error when logging {logconf.name}, msg: {msg}")
+
+    def add_loggers(self, scf, loggers):
+        for logger in loggers:
+            scf.cf.log.add_config(logger)
+            logger.data_received_cb.add_callback(
+                lambda timestamp, data, logconf: self.log_callback(scf.cf.link_uri, timestamp, data, logconf)
+            )
+
     def init_cflogger(self, scf):
         if scf.cf.link_uri != self._exp_config.URI_LIST[self._logging_cfid]:
             return
@@ -61,21 +71,19 @@ class DownwashCommander:
         logger.add_variable('motor.m4', 'uint16_t')
         # logger.add_variable('pm.vbatMV', 'uint16_t')
 
+        scf.cf.log.add_config(logger)
         logger.data_received_cb.add_callback(
             lambda timestamp, data, logconf: self.log_callback(scf.cf.link_uri, timestamp, data, logconf)
         )
-
 
         logger1 = LogConfig(name='Battery', period_in_ms=1000 / self._log_rate)
         logger1.add_variable('pm.vbatMV', 'uint16_t')
 
-        scf.cf.log.add_config([logger, logger1])
-        logger.data_received_cb.add_callback(
-            lambda timestamp, data, logconf: self.log_callback(scf.cf.link_uri, timestamp, data, logconf)
-        )
+        loggers = [logger, logger1]
 
+        self.add_loggers(scf, loggers)
 
-        self._cf_loggers.extend([logger])
+        self._cf_loggers.extend(loggers)
 
     def start_logger(self):
         for logger in self._cf_loggers:
