@@ -120,7 +120,7 @@ def compute_angular_accel_error(time_line, gyro_data, motor_voltage, I_xyz, k_T,
 
 if __name__ == '__main__':
 
-    configs = ["x0_z8_yaw0_TH35000"]
+    configs = ["x0_z24_yaw0_TH35000"]
 
     project_root = Path(__file__).resolve().parent
 
