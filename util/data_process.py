@@ -88,7 +88,7 @@ def plot_metrics(filepath, ):
     ax_index = 0
 
     if len(timeline) > 0:
-        time_axis = (np.array(timeline) - timeline[0]) / 1000
+        time_axis = (np.array(timeline) - timeline[0])
 
         for component in log_components.keys():
             ax = axes[ax_index]

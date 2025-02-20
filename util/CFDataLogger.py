@@ -56,10 +56,9 @@ class CFDataLogger:
 
                 timestamp, name, data = log_item
 
-                timestamp = int(np.round(timestamp/self._timescale))
+                timestamp = timestamp/self._timescale
 
-                # logger.debug(f"Time: {timestamp - self._start_time:.2f} Start Time: {log_start_time-
-                # self._start_time}, Save Time: {save_time - self._start_time}")
+                logger.debug(f"Time: {timestamp - self._start_time:.2f}, Start Time: {log_start_time-self._start_time}, Save Time: {save_time - self._start_time}")
 
                 if timestamp > log_start_time:
 
