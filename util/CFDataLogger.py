@@ -83,8 +83,11 @@ class CFDataLogger:
                     for item in self.log_vars["component"].keys():
                         log_component = self.log_vars["component"][item]
                         for par in log_component["value"].keys():
-                            value = data[par]
-                            log_component["value"][par]["data"].append(value)
+                            try:
+                                value = data[par]
+                                log_component["value"][par]["data"].append(value)
+                            except:
+                                continue
 
             except queue.Empty:
                 continue

@@ -59,12 +59,21 @@ class DownwashCommander:
         logger.add_variable('motor.m2', 'uint16_t')
         logger.add_variable('motor.m3', 'uint16_t')
         logger.add_variable('motor.m4', 'uint16_t')
-        logger.add_variable('pm.vbatMV', 'uint16_t')
+        # logger.add_variable('pm.vbatMV', 'uint16_t')
 
-        scf.cf.log.add_config(logger)
         logger.data_received_cb.add_callback(
             lambda timestamp, data, logconf: self.log_callback(scf.cf.link_uri, timestamp, data, logconf)
         )
+
+
+        logger1 = LogConfig(name='Battery', period_in_ms=1000 / self._log_rate)
+        logger1.add_variable('pm.vbatMV', 'uint16_t')
+
+        scf.cf.log.add_config([logger, logger1])
+        logger.data_received_cb.add_callback(
+            lambda timestamp, data, logconf: self.log_callback(scf.cf.link_uri, timestamp, data, logconf)
+        )
+
 
         self._cf_loggers.extend([logger])
 
