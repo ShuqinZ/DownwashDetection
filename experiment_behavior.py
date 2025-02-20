@@ -3,7 +3,11 @@ import time
 from util import logger
 
 
-def stationary_Flight(scf, start_time, iterations, prep_time, gap, wait_time, duration, command, debug=0):
+def stationary_Flight(scf, start_time, iterations, prep_time, gap, wait_time, duration, command, debug=0, heart_beat=0.2):
+    # The default heartbeat is 0.2, so if there is a package lost, the cf still have time to receive the new one.
+    # The pitch needs to be set to the negative of the desired value
+    # see line 95 of crazyflie-lib-python/cflib/crazyflie/commander.py
+
     scf.cf.commander.send_setpoint(0, 0, 0, 0)
 
     if isinstance(command, list):
@@ -14,7 +18,7 @@ def stationary_Flight(scf, start_time, iterations, prep_time, gap, wait_time, du
         yawrate = 0
         thrust = command
 
-
+    pitch = -pitch
     command_change = True
 
     iteration_start_time = start_time + prep_time
@@ -65,7 +69,7 @@ def stationary_Flight(scf, start_time, iterations, prep_time, gap, wait_time, du
                         continue
                     else:
                         scf.cf.commander.send_setpoint(0, 0, 0, 0)
-                    heart_beat_time += 0.5
+                    heart_beat_time += heart_beat
                 continue
 
             # if cf should move and is moving
@@ -88,7 +92,7 @@ def stationary_Flight(scf, start_time, iterations, prep_time, gap, wait_time, du
                         continue
                     else:
                         scf.cf.commander.send_setpoint(roll, pitch, yawrate, thrust)
-                    heart_beat_time += 0.5
+                    heart_beat_time += heart_beat
 
         logger.debug(
             f"ID: {scf.cf.link_uri[-2:]}, Iteration {i} finished, Time: {time.time() - start_time:.2f}")
@@ -98,7 +102,7 @@ def stationary_Flight(scf, start_time, iterations, prep_time, gap, wait_time, du
     time.sleep(0.1)
 
 
-def swirl_Flight(scf, start_time, iterations, prep_time, gap, wait_time, duration, thrust, debug=0):
+def swirl_Flight(scf, start_time, iterations, prep_time, gap, wait_time, duration, thrust, debug=0, heart_beat=0.2):
     scf.cf.commander.send_setpoint(0, 0, 0, 0)
 
     roll = 0.0
@@ -155,7 +159,7 @@ def swirl_Flight(scf, start_time, iterations, prep_time, gap, wait_time, duratio
                         continue
                     else:
                         scf.cf.commander.send_setpoint(0, 0, 0, 0)
-                    heart_beat_time += 0.5
+                    heart_beat_time += heart_beat
                 continue
 
             # if cf should move and is moving
@@ -178,7 +182,7 @@ def swirl_Flight(scf, start_time, iterations, prep_time, gap, wait_time, duratio
                         continue
                     else:
                         scf.cf.commander.send_setpoint(roll, pitch, yawrate, thrust)
-                    heart_beat_time += 0.5
+                    heart_beat_time += heart_beat
 
         logger.debug(
             f"ID: {scf.cf.link_uri[-2:]}, Iteration {i} finished, Time: {time.time() - start_time:.2f}")

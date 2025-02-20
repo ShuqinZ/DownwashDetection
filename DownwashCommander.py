@@ -57,6 +57,9 @@ class DownwashCommander:
                 lambda timestamp, data, logconf: self.log_callback(scf.cf.link_uri, timestamp, data, logconf)
             )
 
+        self._cf_loggers.extend(loggers)
+        self.logger.set_log_num(len(loggers))
+
     def init_cflogger(self, scf):
         if scf.cf.link_uri != self._exp_config.URI_LIST[self._logging_cfid]:
             return
@@ -82,8 +85,6 @@ class DownwashCommander:
         loggers = [logger, logger1]
 
         self.add_loggers(scf, loggers)
-
-        self._cf_loggers.extend(loggers)
 
     def start_logger(self):
         for logger in self._cf_loggers:
@@ -119,7 +120,6 @@ class DownwashCommander:
 
             logger.info("Settle Start Time")
 
-            # start_time, iterations, prep_time, gap, wait_time, duration, thrust, debug=0
             args_dict = {
                 self._exp_config.URI_LIST[0]: [self._start_time, self._exp_config.ITERATIONS, self._exp_config.GAP,
                                                self._exp_config.GAP, 0,

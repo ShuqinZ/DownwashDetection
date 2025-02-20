@@ -10,7 +10,7 @@ from util import logger
 
 
 class CFDataLogger:
-    def __init__(self, config, duration, gap, file_prefix, timescale=1000):
+    def __init__(self, config, duration, gap, file_prefix, timescale=1000, log_num=1):
 
         self._config = config
         self._start_time = None
@@ -27,7 +27,12 @@ class CFDataLogger:
         self.log_queue = queue.Queue()
         self.running = True
 
+        self._log_num = log_num
+
         self.log_thread = threading.Thread(target=self._process_logs, daemon=True)
+
+    def set_log_num(self, log_num):
+        self._log_num = log_num
 
     def start_logging(self, start_time):
         self._start_time = start_time
@@ -48,6 +53,10 @@ class CFDataLogger:
         log_start_time = self._start_time + self._gap
         save_time = self._start_time + self._gap + self._duration
 
+        log_piece = 0
+        prev_time = -1
+        log_block = {}
+
         # logger.debug(f"LOG Start Time: {log_start_time-self._start_time}, LOG Save Time: {save_time - self._start_time}")
 
         while self.running or not self.log_queue.empty():
@@ -61,9 +70,13 @@ class CFDataLogger:
                 logger.debug(f"Time: {timestamp - self._start_time:.2f}, Start Time: {log_start_time-self._start_time}, Save Time: {save_time - self._start_time}")
 
                 if timestamp > log_start_time:
-
                     # if it's time to save, skip logging it and
                     if timestamp > save_time:
+
+                        prev_time = -1
+                        log_piece = 0
+                        log_block = {}
+
                         filename = self._file_prefix + f"_{iterations}"
                         self._save_log(filename)
                         # logger.info(f"LOG SAVED for iteration: {iterations}")
@@ -79,15 +92,24 @@ class CFDataLogger:
 
                         continue
 
-                    self.log_vars["timestamp"].append(timestamp)
-                    for item in self.log_vars["component"].keys():
-                        log_component = self.log_vars["component"][item]
-                        for par in log_component["value"].keys():
-                            try:
-                                value = data[par]
-                                log_component["value"][par]["data"].append(value)
-                            except:
-                                continue
+                    if log_piece > 0 and timestamp != prev_time:
+                        pass
+                    else:
+                        log_block.update(data)
+                        log_piece += 1
+                        prev_time = timestamp
+
+
+                    if log_piece >= self._log_num - 1:
+                        self.log_vars["timestamp"].append(timestamp)
+                        for item in self.log_vars["component"].keys():
+                            log_component = self.log_vars["component"][item]
+                            for par in log_component["value"].keys():
+                                try:
+                                    value = log_block[par]
+                                    log_component["value"][par]["data"].append(value)
+                                except:
+                                    continue
 
             except queue.Empty:
                 continue
