@@ -1,5 +1,7 @@
+from util import logger
 from util.data_process import *
 
+import ruptures as rpt
 
 def calculate_k_T(C_T, rho, propeller_diameter):
     """
@@ -113,7 +115,7 @@ def compute_angular_accel_error(time_line, gyro_data, motor_voltage, I_xyz, k_T,
         predicted_accel[axis] = np.array(predicted_accel[axis])
 
     # Compute errors
-    residue = [np.array(actual_accel[axis]) - np.array(predicted_accel[axis]) for axis in range(3)]
+    residue = [np.array(predicted_accel[axis] - np.array(actual_accel[axis])) for axis in range(3)]
 
     return actual_accel, predicted_accel, residue
 
@@ -186,9 +188,23 @@ if __name__ == '__main__':
             img_name = os.path.join(directory_name, "".join(f.split('.')[:-1]) + "_error")
 
             time_line = (np.array(timeline_0[2:]) - timeline_0[2])
-            plot_general(img_name, time_line, error, line_names=["Roll", "Pitch", "Yaw"], x_label="Time(s)",
-                         y_label="Angular Acc Residual (deg/s)")
-            # Print the results
-            # print("Actual Angular Acceleration:", actual_accel)
-            # print("Predicted Angular Acceleration:", predicted_accel)
-            # print("Error:", error)
+
+            fig, axis = plt.subplots(nrows=2, figsize=(12, 8))
+            plot_general("", time_line, error, line_names=["Roll", "Pitch", "Yaw"], x_label="Time(s)",
+                         y_label="Angular Acc Residual (deg/s^2)", x_lim=[time_line[0], time_line[-1]], plot=[fig, axis[0]])
+
+            # for e in error:
+            #     change_point = bcpd(e, 1)
+            #     axis[0].axvline(time_line[change_point[0]], color='red', linestyle="--")
+
+            total_error = [sum(abs(x) for x in values) for values in zip(*error)]
+            change_point = bcpd(total_error, 1)
+
+            plot_general("", time_line, total_error, line_names=[""], x_label="Time(s)",
+                         y_label="Total Angular Acc Residual (deg/s^2)", x_lim=[time_line[0], time_line[-1]], plot=[fig, axis[1]])
+
+            axis[1].axvline(time_line[change_point[0]], color='red', linestyle="--")
+
+            plt.tight_layout()
+            plt.savefig(f'{img_name}.png', dpi=300)
+            logger.info(f'SAVED: {img_name}.png')
