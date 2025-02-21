@@ -5,10 +5,10 @@ class Config:
     GAP = 5
     WAIT_TIME = 5
     THRUST = 35000
-    ROLL = 10
-    PITCH = 10
+    ROLL = 0
+    PITCH = 0
     YAWRATE = 0
-    DELTA_X = 0
+    DELTA_X = 5
     DELTA_Z = 24
     DELTA_YAW = 0
     CONFIG = f"x{DELTA_X}_z{DELTA_Z}_yaw{DELTA_YAW}_TH{THRUST}_R{ROLL}_P{PITCH}_YR{YAWRATE}"
