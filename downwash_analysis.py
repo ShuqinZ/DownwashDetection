@@ -135,7 +135,7 @@ def compute_angular_accel_error(time_line, gyro_data, motor_voltage, I_xyz, k_T,
 
 if __name__ == '__main__':
 
-    configs = ["x0_z24_yaw0_TH35000", "x0_z24_yaw0_TH35000_R5_P0_YR0", "x0_z24_yaw0_TH35000_R5_P5_YR0"]
+    configs = ["x0_z24_yaw0_TH35000_R10_P10_YR0"]
 
     project_root = Path(__file__).resolve().parent
 
