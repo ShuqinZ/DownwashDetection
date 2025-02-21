@@ -5,8 +5,8 @@ class Config:
     GAP = 5
     WAIT_TIME = 5
     THRUST = 35000
-    ROLL = 5
-    PITCH = 0
+    ROLL = 10
+    PITCH = 10
     YAWRATE = 0
     DELTA_X = 0
     DELTA_Z = 24
