@@ -152,6 +152,8 @@ if __name__ == '__main__':
             filepath = os.path.join(directory_name, f)
             log_vars = load_data(filepath)
 
+            downwash_time = log_vars["Downwash_Start_Time"]
+
             timeline_0 = np.array(log_vars["timestamp"])
             gyro_data = [
                 [roll, pitch, yaw]
@@ -206,6 +208,8 @@ if __name__ == '__main__':
             plot_general("", time_line, error, line_names=["Roll", "Pitch", "Yaw"], x_label="Time(s)",
                          y_label="Angular Acc Residual (deg/s^2)", x_lim=[time_line[0], time_line[-1]], plot=[fig, axis[0]])
 
+            axis[0].axvline(downwash_time, color='blue', linestyle="--", label="Downwash Start Time")
+
             # for e in error:
             #     change_point = bcpd(e, 1)
             #     axis[0].axvline(time_line[change_point[0]], color='red', linestyle="--")
@@ -216,7 +220,8 @@ if __name__ == '__main__':
             plot_general("", time_line, total_error, line_names=[""], x_label="Time(s)",
                          y_label="Total Angular Acc Residual (deg/s^2)", x_lim=[time_line[0], time_line[-1]], plot=[fig, axis[1]])
 
-            axis[1].axvline(time_line[change_point[0]], color='red', linestyle="--")
+            axis[1].axvline(downwash_time, color='blue', linestyle="--", label="Downwash Start Time")
+            axis[1].axvline(time_line[change_point[0]], color='red', linestyle="--", label="Detected Downwash Start Time")
 
             plt.tight_layout()
             plt.savefig(f'{img_name}.png', dpi=300)

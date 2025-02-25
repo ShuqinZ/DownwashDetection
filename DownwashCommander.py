@@ -43,7 +43,7 @@ class DownwashCommander:
             if self._start_time is None:
                 start_timestamp = timestamp/1000
                 self._start_time = time.time()
-                self.logger.start_logging(start_timestamp)
+                self.logger.start_logging(start_timestamp, self._start_time - start_timestamp + self._exp_config.WAIT_TIME)
 
             self.logger.log(timestamp, logconf.name, data)
 

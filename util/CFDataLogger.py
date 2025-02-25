@@ -14,6 +14,7 @@ class CFDataLogger:
 
         self._config = config
         self._start_time = None
+        self._downwash_time_shift = None
         self._duration = duration
         self._gap = gap
         self._file_prefix = file_prefix
@@ -35,8 +36,9 @@ class CFDataLogger:
         logger.debug(f"LOG BLOCK PIECES: {log_num}")
         self._log_num = log_num
 
-    def start_logging(self, start_time):
+    def start_logging(self, start_time, _downwash_time_shift):
         self._start_time = start_time
+        self._downwash_time_shift = _downwash_time_shift
         self.log_thread.start()
 
     def _init_log_directory(self):
@@ -80,6 +82,8 @@ class CFDataLogger:
                 if timestamp > log_start_time:
                     # if it's time to save, skip logging it and
                     if timestamp > save_time:
+
+                        self.log_vars["Downwash_Start_Time"] = log_start_time + self._downwash_time_shift
 
                         reset_logblock()
 
@@ -145,6 +149,7 @@ class CFDataLogger:
     def reset_log_vars(self):
         self.log_vars = {
             "timestamp": [],
+            "Downwash_Start_Time": -1,
             "component": {
                 "Gyro": {
                     "range": [-45, 45],
