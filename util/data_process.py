@@ -28,6 +28,16 @@ def bcpd(data, num):
 def is_2d_list(list2d):
     return all(isinstance(row, list) or isinstance(row, np.ndarray) for row in list2d)
 
+def list_folder(directory):
+    try:
+        files = [f for f in os.listdir(directory) if os.path.isdir(os.path.join(directory, f))]
+        return files
+    except FileNotFoundError:
+        print(f"Error: Directory '{directory}' not found.")
+        return []
+    except PermissionError:
+        print(f"Error: Permission denied to access '{directory}'.")
+        return []
 
 def list_files(directory):
     try:

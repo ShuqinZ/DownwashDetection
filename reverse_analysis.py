@@ -6,7 +6,6 @@ from matplotlib.colors import TABLEAU_COLORS, same_color
 
 def calculate_k_T(C_T, rho, propeller_diameter):
     """
-    Blade Element Theory Approximation
     Calculate the thrust coefficient k_T based on the momentum theory.
 
     Parameters:
@@ -17,11 +16,9 @@ def calculate_k_T(C_T, rho, propeller_diameter):
     Returns:
     - k_T (float): Thrust coefficient in N/(rad/s)^2.
     """
-    A = (np.pi * propeller_diameter ** 2)/4  # Disk area
-
-    # k_T = 2 * C_T * rho * A * (propeller_diameter /2) ** 2
-
-    k_T = C_T * rho * propeller_diameter ** 4
+    R = propeller_diameter / 2  # Convert diameter to radius
+    A = np.pi * R ** 2  # Disk area
+    k_T = 0.5 * C_T * rho * A * R ** 2
     return k_T
 
 
@@ -42,9 +39,9 @@ def get_thrust(k_T, K_V, V):
     def calculate_thrust(k_T, K_V, v):
         # 1 RPM = 0.10472 rad/s
         rpm = K_V * v
-        rps = rpm/60
+        omega = rpm * 0.1047198
         # Compute thrust using the quadratic model
-        return k_T * rps ** 2
+        return k_T * omega ** 2
 
     if isinstance(V, np.ndarray):
         thrust = []
@@ -128,23 +125,6 @@ def compute_angular_accel_error(time_line, gyro_data, motor_voltage, I_xyz, k_T,
         tau_pitch = l * (T4 - T3) * np.cos(theta) + h * (T1 + T2 + T3 + T4) * np.sin(theta)
         tau_yaw = l * ((T4 + T3) - (T1 + T2))
 
-        # Compute additional torque from gravity
-        # tau_gravity_roll = m * g * h * np.sin(phi)
-        # tau_gravity_pitch = m * g * h * np.sin(theta)
-
-        # Compute angular velocity rad/s
-        # omega_x, omega_y, omega_z = actual_gyro_rate[:, i]
-
-        # Compute gyroscopic effects (ω × Iω)
-        # gyro_torque_x = omega_y * omega_z * (I_y - I_z)
-        # gyro_torque_y = omega_x * omega_z * (I_z - I_x)
-        # gyro_torque_z = omega_x * omega_y * (I_x - I_y)
-
-        # Compute predicted angular accelerations (using full model)
-        # predicted_ddot_roll = (tau_roll + tau_gravity_roll - gyro_torque_x) / I_x
-        # predicted_ddot_pitch = (tau_pitch + tau_gravity_pitch - gyro_torque_y) / I_y
-        # predicted_ddot_yaw = (tau_yaw - gyro_torque_z) / I_z  # No gravity effect on yaw
-
         predicted_ddot_roll = (tau_roll) / I_x
         predicted_ddot_pitch = (tau_pitch) / I_y
         predicted_ddot_yaw = (tau_yaw) / I_z  # No gravity effect on yaw
@@ -188,14 +168,14 @@ if __name__ == '__main__':
             downwash_time = log_vars["Downwash_Start_Time"]
 
             timeline_0 = np.array(log_vars["timestamp"])
-            gyro_data = [
+            gyro_data = np.array([
                 [roll, pitch, yaw]
                 for roll, pitch, yaw in zip(
                     log_vars["component"]["Gyro"]["value"]["stateEstimate.roll"]["data"],
                     log_vars["component"]["Gyro"]["value"]["stateEstimate.pitch"]["data"],
                     log_vars["component"]["Gyro"]["value"]["stateEstimate.yaw"]["data"]
                 )
-            ]
+            ])
 
             # timeline_1 = log_vars["Gyro_Accel"]["timestamp"]
             motor_PWM = np.array([
@@ -209,13 +189,6 @@ if __name__ == '__main__':
             ])
 
             battery_voltage = np.array(log_vars["component"]["Battery"]["value"]["pm.vbatMV"]["data"])
-
-            # index_0, index_1 = match_timeline(timeline_0, timeline_1)
-            #
-            # motor_PWM = data_time_alignment(motor_PWM[index_1:], timeline_1[index_1] - timeline_0[index_0])
-            # battery_voltage = data_time_alignment(battery_voltage[index_1:], timeline_1[index_1] - timeline_0[index_0])
-
-            gyro_data = np.array(gyro_data)
 
             motor_voltage = np.array([b * np.array(pwm) for b, pwm in zip(battery_voltage / 1000, motor_PWM / 65535)])
 
