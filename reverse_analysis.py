@@ -216,7 +216,7 @@ if __name__ == '__main__':
             axis[0].axvline(downwash_time, color='grey', linestyle="--", label="Downwash Start Time")
 
             for e, rpy, color in zip(error, ["Roll", "Pitch", "Yaw"], TABLEAU_COLORS):
-                change_point = bcpd(e, 1)
+                change_point = bcpd_window(e, 1)
                 axis[0].axvline(time_line[change_point[0]], color='red', linestyle="--", label=f"{rpy} Detected Time",
                                 c=color)
 
@@ -225,7 +225,7 @@ if __name__ == '__main__':
                          plot=[fig, axis[0]])
 
             total_error = [sum(abs(x) for x in values) for values in zip(*error)]
-            change_point = bcpd(total_error, 1)
+            change_point = bcpd_window(total_error, 1)
 
             axis[1].axvline(downwash_time, color='grey', linestyle="--", label="Downwash Start Time")
             axis[1].axvline(time_line[change_point[0]], color='red', linestyle="--",

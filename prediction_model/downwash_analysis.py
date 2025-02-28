@@ -3,59 +3,7 @@ from util.data_process import *
 
 from matplotlib.colors import TABLEAU_COLORS, same_color
 
-
-def calculate_k_T(C_T, rho, propeller_diameter):
-    """
-    Blade Element Theory Approximation
-    Calculate the thrust coefficient k_T based on the momentum theory.
-
-    Parameters:
-    - C_T (float): Thrust coefficient (depends on propeller shape).
-    - rho (float): Air density (kg/m^3).
-    - propeller_diameter (float): Diameter of the propeller in meters.
-
-    Returns:
-    - k_T (float): Thrust coefficient in N/(rad/s)^2.
-    """
-    A = (np.pi * propeller_diameter ** 2)/4  # Disk area
-
-    # k_T = 2 * C_T * rho * A * (propeller_diameter /2) ** 2
-
-    k_T = C_T * rho * propeller_diameter ** 4
-    return k_T
-
-
-def get_thrust(k_T, K_V, V):
-    """
-    Convert PWM signal to thrust using a quadratic model.
-
-    Parameters:
-    - pwm_signal (array or list): PWM values (typically in microseconds).
-    - k_T (float): Thrust coefficient (determined experimentally).
-    - k_V (float): V
-    - V: Real time voltage
-
-    Returns:
-    - thrust (array): Estimated thrust values.
-    """
-
-    def calculate_thrust(k_T, K_V, v):
-        # 1 RPM = 0.10472 rad/s
-        rpm = K_V * v
-        rps = rpm/60
-        # Compute thrust using the quadratic model
-        return k_T * rps ** 2
-
-    if isinstance(V, np.ndarray):
-        thrust = []
-        for v in V:
-            thrust.append(calculate_thrust(k_T, K_V, v))
-    else:
-        # Compute thrust using the quadratic model
-        thrust = calculate_thrust(k_T, K_V, V)
-
-    return thrust
-
+from util.prediction import *
 
 '''
                     ↑ (Front)
@@ -72,7 +20,6 @@ def get_thrust(k_T, K_V, V):
                 Yaw-: clockwise
                 Yaw+: counter-cloclwise
 '''
-import numpy as np
 
 
 def compute_angular_accel_error(time_line, gyro_data, motor_voltage, I_xyz, k_T, K_V, l, h, m, g=9.81):
@@ -170,7 +117,7 @@ if __name__ == '__main__':
 
     project_root = Path(__file__).resolve().parent
 
-    dir_path = os.path.join(project_root, "metrics")
+    dir_path = os.path.join(project_root, "../metrics")
 
     configs = list_folder(dir_path)
 
@@ -183,41 +130,7 @@ if __name__ == '__main__':
                 continue
 
             filepath = os.path.join(directory_name, f)
-            log_vars = load_data(filepath)
-
-            downwash_time = log_vars["Downwash_Start_Time"]
-
-            timeline_0 = np.array(log_vars["timestamp"])
-            gyro_data = [
-                [roll, pitch, yaw]
-                for roll, pitch, yaw in zip(
-                    log_vars["component"]["Gyro"]["value"]["stateEstimate.roll"]["data"],
-                    log_vars["component"]["Gyro"]["value"]["stateEstimate.pitch"]["data"],
-                    log_vars["component"]["Gyro"]["value"]["stateEstimate.yaw"]["data"]
-                )
-            ]
-
-            # timeline_1 = log_vars["Gyro_Accel"]["timestamp"]
-            motor_PWM = np.array([
-                [m1, m2, m3, m4]
-                for m1, m2, m3, m4 in zip(
-                    log_vars["component"]["Motor"]["value"]["motor.m1"]["data"],
-                    log_vars["component"]["Motor"]["value"]["motor.m2"]["data"],
-                    log_vars["component"]["Motor"]["value"]["motor.m3"]["data"],
-                    log_vars["component"]["Motor"]["value"]["motor.m4"]["data"]
-                )
-            ])
-
-            battery_voltage = np.array(log_vars["component"]["Battery"]["value"]["pm.vbatMV"]["data"])
-
-            # index_0, index_1 = match_timeline(timeline_0, timeline_1)
-            #
-            # motor_PWM = data_time_alignment(motor_PWM[index_1:], timeline_1[index_1] - timeline_0[index_0])
-            # battery_voltage = data_time_alignment(battery_voltage[index_1:], timeline_1[index_1] - timeline_0[index_0])
-
-            gyro_data = np.array(gyro_data)
-
-            motor_voltage = np.array([b * np.array(pwm) for b, pwm in zip(battery_voltage / 1000, motor_PWM / 65535)])
+            timeline, motor_voltage, gyro_data, downwash_time = load_log(filepath)
 
             I_xyz = [0.000023951, 0.000023951, 0.000032347]  # moment of inertia, kg/m^2
             l = (0.092 / 2) * np.sqrt(2)  # arm length
@@ -228,22 +141,22 @@ if __name__ == '__main__':
             rho = 1.225  # air pressure
             propeller_diameter = 0.051  # meter
 
-            k_T = calculate_k_T(C_T, rho, propeller_diameter)
+            k_T = get_k_T(C_T, rho, propeller_diameter)
 
-            actual_accel, predicted_accel, error = compute_angular_accel_error(timeline_0, gyro_data, motor_voltage,
+            actual_accel, predicted_accel, error = compute_angular_accel_error(timeline, gyro_data, motor_voltage,
                                                                                I_xyz, k_T, K_V, l, h, m)
 
             img_name = os.path.join(directory_name, "".join(f.split('.')[:-1]) + "_error")
 
-            time_line = (np.array(timeline_0[2:]) - timeline_0[2])
+            time_line = (np.array(timeline[2:]) - timeline[2])
 
-            downwash_time = downwash_time - timeline_0[2]
+            downwash_time = downwash_time - timeline[2]
 
             fig, axis = plt.subplots(nrows=2, figsize=(12, 8))
             axis[0].axvline(downwash_time, color='grey', linestyle="--", label="Downwash Start Time")
 
             for e, rpy, color in zip(error, ["Roll", "Pitch", "Yaw"], TABLEAU_COLORS):
-                change_point = bcpd(e, 1)
+                change_point = bcpd_window(e, 1)
                 axis[0].axvline(time_line[change_point[0]], color='red', linestyle="--", label=f"{rpy} Detected Time",
                                 c=color)
 
@@ -252,7 +165,7 @@ if __name__ == '__main__':
                          plot=[fig, axis[0]])
 
             total_error = [sum(abs(x) for x in values) for values in zip(*error)]
-            change_point = bcpd(total_error, 1)
+            change_point = bcpd_window(total_error, 1)
 
             axis[1].axvline(downwash_time, color='grey', linestyle="--", label="Downwash Start Time")
             axis[1].axvline(time_line[change_point[0]], color='red', linestyle="--",

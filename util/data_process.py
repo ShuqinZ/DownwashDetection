@@ -7,11 +7,13 @@ import matplotlib.pyplot as plt
 
 from pathlib import Path
 
+from scipy.spatial.transform import Rotation as R
 
-def bcpd(data, num):
+
+def bcpd_window(data, num):
     # Apply Bayesian Change Point Detection
     algo = rpt.Window(model="l2", width=10).fit(np.array(data))  # Binary Segmentation Algorithm
-    change_points = algo.predict(n_bkps=(num+2))  # Detect one change point
+    change_points = algo.predict(n_bkps=(num + 2))  # Detect one change point
 
     results = []
     for c in change_points[:-1]:
@@ -24,9 +26,16 @@ def bcpd(data, num):
 
     return results
 
+def bcpd_pelt(data):
+    # Apply Bayesian Change Point Detection
+    algo = rpt.Pelt(model="rbf").fit(np.array(data))  # Binary Segmentation Algorithm
+    change_points = algo.predict(pen=10)  # Detect one change point
+    return change_points
+
 
 def is_2d_list(list2d):
     return all(isinstance(row, list) or isinstance(row, np.ndarray) for row in list2d)
+
 
 def list_folder(directory):
     try:
@@ -38,6 +47,7 @@ def list_folder(directory):
     except PermissionError:
         print(f"Error: Permission denied to access '{directory}'.")
         return []
+
 
 def list_files(directory):
     try:
@@ -151,3 +161,119 @@ def plot_general(filename, x_data, y_datas, line_names=None, x_label="Time(s)", 
     if filename and filename != "":
         plt.tight_layout()
         plt.savefig(f'{filename}.png', dpi=300)
+
+
+def load_data_values(filepath, downwash=True, pre_downwash=True):
+    log_vars = load_data(filepath)
+
+    downwash_time = log_vars["Downwash_Start_Time"]
+
+    timeline_0 = np.array(log_vars["timestamp"])
+    gyro_data = np.array([
+        [roll, pitch, yaw]
+        for roll, pitch, yaw in zip(
+            log_vars["component"]["Gyro"]["value"]["stateEstimate.roll"]["data"],
+            log_vars["component"]["Gyro"]["value"]["stateEstimate.pitch"]["data"],
+            log_vars["component"]["Gyro"]["value"]["stateEstimate.yaw"]["data"]
+        )
+    ])
+
+    # timeline_1 = log_vars["Gyro_Accel"]["timestamp"]
+    motor_PWM = np.array([
+        [m1, m2, m3, m4]
+        for m1, m2, m3, m4 in zip(
+            log_vars["component"]["Motor"]["value"]["motor.m1"]["data"],
+            log_vars["component"]["Motor"]["value"]["motor.m2"]["data"],
+            log_vars["component"]["Motor"]["value"]["motor.m3"]["data"],
+            log_vars["component"]["Motor"]["value"]["motor.m4"]["data"]
+        )
+    ])
+
+    battery_voltage = np.array(log_vars["component"]["Battery"]["value"]["pm.vbatMV"]["data"])
+
+    motor_voltage = np.array([b * np.array(pwm) for b, pwm in zip(battery_voltage / 1000, motor_PWM / 65535)])
+
+    if not downwash:
+        V_input = motor_voltage.T
+        alpha_roll = gyro_data[:, 0]
+        alpha_pitch = gyro_data[:, 1]
+        alpha_yaw = gyro_data[:, 2]
+    else:
+        downwash_index = -1
+        for i, ts in enumerate(timeline_0):
+            if ts < downwash_time:
+                continue
+            else:
+                downwash_index = i
+                break
+        if pre_downwash:
+            V_input = motor_voltage[: downwash_index].T
+            alpha_roll = gyro_data[: downwash_index, 0]
+            alpha_pitch = gyro_data[: downwash_index, 1]
+            alpha_yaw = gyro_data[: downwash_index, 2]
+        else:
+            V_input = motor_voltage[downwash_index:].T
+            alpha_roll = gyro_data[downwash_index:, 0]
+            alpha_pitch = gyro_data[downwash_index:, 1]
+            alpha_yaw = gyro_data[downwash_index:, 2]
+
+    return V_input, alpha_roll, alpha_pitch, alpha_yaw
+
+
+def load_log(filepath):
+    log_vars = load_data(filepath)
+
+    downwash_time = log_vars["Downwash_Start_Time"]
+
+    timeline = np.array(log_vars["timestamp"])
+    gyro_data = np.deg2rad([
+        [roll, pitch, yaw]
+        for roll, pitch, yaw in zip(
+            log_vars["component"]["Gyro"]["value"]["stateEstimate.roll"]["data"],
+            log_vars["component"]["Gyro"]["value"]["stateEstimate.pitch"]["data"],
+            log_vars["component"]["Gyro"]["value"]["stateEstimate.yaw"]["data"]
+        )
+    ])
+
+    motor_PWM = np.array([
+        [m1, m2, m3, m4]
+        for m1, m2, m3, m4 in zip(
+            log_vars["component"]["Motor"]["value"]["motor.m1"]["data"],
+            log_vars["component"]["Motor"]["value"]["motor.m2"]["data"],
+            log_vars["component"]["Motor"]["value"]["motor.m3"]["data"],
+            log_vars["component"]["Motor"]["value"]["motor.m4"]["data"]
+        )
+    ])
+
+    battery_voltage = np.array(log_vars["component"]["Battery"]["value"]["pm.vbatMV"]["data"])
+
+    motor_voltage = np.array([b * np.array(pwm) for b, pwm in zip(battery_voltage / 1000, motor_PWM / 65535)])
+
+    return timeline, motor_voltage, gyro_data, downwash_time
+
+
+def cross(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    return np.cross(a, b)
+
+
+def euler_to_quaternion(orientation):
+    """
+    Convert roll, pitch, yaw (in radians) to quaternion [x, y, z, w].
+    """
+    r = R.from_euler('xyz', orientation, degrees=False)
+    return r.as_quat()  # Returns [x, y, z, w]
+
+
+def quaternion_to_euler(quat):
+    """
+    Convert a quaternion to Euler angles (roll, pitch, yaw).
+
+    Args:
+        quat (array-like): Quaternion [x, y, z, w] (where w is the scalar part)
+
+    Returns:
+        np.ndarray: Euler angles [roll, pitch, yaw] in radians
+    """
+    rotation = R.from_quat(quat)  # Convert to rotation object
+    euler_angles = rotation.as_euler('xyz', degrees=False)  # Get Euler angles in radians
+    return euler_angles
